@@ -4,125 +4,70 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JARUM — Sniper 5/6 jam · Solana + Robinhood · FOMO</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@420;560;680&family=IBM+Plex+Mono:wght@400;560&display=swap" />
 <style>
-  :root {
-    --ink: #10140f;
-    --panel: #171d16;
-    --panel-2: #1e261c;
-    --line: #2c3828;
-    --text: #e7efe2;
-    --muted: #93a38c;
-    --lime: #c6f54e;
-    --amber: #e7a23a;
-    --rose: #e36b62;
-    --ok: #7dcea0;
-    --scope: #d6ff6a;
-  }
+  :root { --ink:#10140f; --panel:#171d16; --line:#2c3828; --text:#e7efe2; --muted:#93a38c; --lime:#c6f54e; --amber:#e7a23a; --rose:#e36b62; --ok:#7dcea0; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--ink); color: var(--text); font-family: "Instrument Sans", "Segoe UI", sans-serif; }
-  body {
-    min-height: 100vh;
-    background:
-      radial-gradient(900px 420px at 80% -10%, rgba(198,245,78,.08), transparent 60%),
-      linear-gradient(180deg, #141a13, #10140f 240px);
-  }
-  header {
-    display: flex; justify-content: space-between; gap: 18px; align-items: flex-end;
-    padding: 22px 28px 14px; border-bottom: 1px solid var(--line);
-  }
-  .brand { display: flex; gap: 14px; align-items: center; }
-  .scope {
-    width: 46px; height: 46px; border-radius: 50%;
-    border: 2px solid var(--scope); position: relative;
-    box-shadow: inset 0 0 0 7px rgba(214,255,106,.08);
-  }
-  .scope::before, .scope::after {
-    content: ""; position: absolute; background: var(--scope);
-  }
-  .scope::before { width: 18px; height: 2px; left: 14px; top: 21px; }
-  .scope::after { width: 2px; height: 18px; left: 21px; top: 13px; }
-  h1 { margin: 0; font-size: 22px; letter-spacing: .08em; font-weight: 680; }
-  h1 span { color: var(--lime); }
-  .sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
-  .pills { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-  .pill { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 6px 10px; font-family: "IBM Plex Mono", monospace; font-size: 11px; }
-  .pill.on { color: var(--ink); background: var(--lime); border-color: var(--lime); }
-  main { display: grid; grid-template-columns: 300px 1fr 340px; gap: 16px; padding: 16px 20px 28px; }
-  aside, section, .ticket { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
-  aside, .ticket { padding: 16px; }
-  h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 560; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
-  input, select, button { font: inherit; }
-  input[type="number"], input[type="text"], input[type="password"], select {
-    width: 100%; background: var(--ink); color: var(--text); border: 1px solid var(--line);
-    border-radius: 10px; padding: 9px 10px;
-  }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .checks { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
-  .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--text); font-size: 13px; }
-  button.primary, button.ghost, button.warn {
-    width: 100%; border: 0; border-radius: 11px; padding: 11px 12px; cursor: pointer; font-weight: 680;
-  }
-  button.primary { background: var(--lime); color: #17200c; margin-top: 14px; }
-  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); margin-top: 8px; }
-  button.warn { background: #2a2114; color: var(--amber); border: 1px solid #5a4320; margin-top: 8px; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  .feed-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .feed-head strong { font-size: 15px; }
-  .meta { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
-  .list { display: flex; flex-direction: column; }
-  .card {
-    display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; align-items: center;
-    padding: 13px 16px; border-bottom: 1px solid var(--line); cursor: pointer;
-  }
-  .card:hover, .card.active { background: #20281e; }
-  .score {
-    width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center;
-    font-family: "IBM Plex Mono", monospace; font-weight: 560; font-size: 20px;
-    border: 1px solid var(--line);
-  }
-  .score.good { color: var(--lime); background: #1c2814; }
-  .score.mid { color: var(--amber); background: #2a2214; }
-  .score.bad { color: var(--rose); background: #2a1816; }
-  .name { font-weight: 680; font-size: 16px; }
-  .ca { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); margin-top: 3px; }
-  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
-  .tag { font-size: 11px; border-radius: 999px; padding: 3px 7px; background: var(--panel-2); color: var(--muted); }
-  .tag.ok { color: var(--ok); }
-  .tag.bad { color: var(--rose); }
-  .tag.fomo { color: var(--ink); background: var(--amber); }
-  .stats { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.55; }
-  .up { color: var(--ok); } .down { color: var(--rose); }
-  .empty { padding: 40px 18px; color: var(--muted); text-align: center; }
-  .ticket h3 { margin: 4px 0 2px; font-size: 22px; }
-  .kv { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #2a3428; }
-  .kv span { color: var(--muted); }
-  .warnbox, .note {
-    border-radius: 12px; padding: 10px 12px; font-size: 12px; line-height: 1.45; margin-top: 12px;
-  }
-  .warnbox { background: #2a2114; color: #f0d7a8; }
-  .note { background: #182016; color: var(--muted); }
-  .log { max-height: 160px; overflow: auto; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
-  .log div { padding: 5px 0; border-bottom: 1px solid #243024; }
-  footer { padding: 0 24px 22px; color: var(--muted); font-size: 12px; line-height: 1.5; }
-  @media (max-width: 1100px) {
-    main { grid-template-columns: 1fr; }
-  }
+  html, body { margin:0; background:var(--ink); color:var(--text); font-family:"Instrument Sans","Segoe UI",sans-serif; }
+  body { min-height:100vh; background:radial-gradient(900px 420px at 80% -10%, rgba(198,245,78,.08), transparent 60%), linear-gradient(180deg,#141a13,#10140f 240px); }
+  header { display:flex; justify-content:space-between; gap:18px; align-items:flex-end; padding:22px 28px 14px; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:22px; letter-spacing:.08em; }
+  h1 span { color:var(--lime); }
+  .sub, .meta { color:var(--muted); font-size:13px; }
+  .meta { font-family:"IBM Plex Mono",monospace; font-size:12px; }
+  .pills { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .pill { border:1px solid var(--line); background:var(--panel); color:var(--muted); border-radius:999px; padding:6px 10px; font-family:"IBM Plex Mono",monospace; font-size:11px; }
+  .pill.on { color:#17200c; background:var(--lime); border-color:var(--lime); }
+  .pill.bad { color:var(--rose); border-color:#5a3030; }
+  main { display:grid; grid-template-columns:300px 1fr 340px; gap:16px; padding:16px 20px 28px; }
+  aside, section, .ticket { background:var(--panel); border:1px solid var(--line); border-radius:16px; }
+  aside, .ticket { padding:16px; }
+  h2 { margin:0 0 12px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+  input, select, button { font:inherit; }
+  input, select { width:100%; background:var(--ink); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 10px; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .checks { display:flex; flex-direction:column; gap:7px; margin-top:8px; }
+  .checks label { display:flex; gap:8px; align-items:center; margin:0; color:var(--text); font-size:13px; }
+  button.primary, button.ghost, button.warn { width:100%; border:0; border-radius:11px; padding:11px 12px; cursor:pointer; font-weight:680; }
+  button.primary { background:var(--lime); color:#17200c; margin-top:14px; }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); margin-top:8px; }
+  button.warn { background:#2a2114; color:var(--amber); border:1px solid #5a4320; margin-top:8px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .note, .warnbox { border-radius:12px; padding:10px 12px; font-size:12px; line-height:1.45; margin-top:12px; }
+  .note { background:#182016; color:var(--muted); }
+  .warnbox { background:#2a2114; color:#f0d7a8; }
+  .banner { margin:12px 20px 0; padding:10px 12px; border-radius:12px; background:#3a221f; color:#f0c7c2; font-size:13px; display:none; }
+  .feed-head { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .card { display:grid; grid-template-columns:74px 1fr auto; gap:12px; align-items:center; padding:13px 16px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .card:hover, .card.active { background:#20281e; }
+  .score { width:64px; height:64px; border-radius:14px; display:grid; place-items:center; font-family:"IBM Plex Mono",monospace; font-size:20px; border:1px solid var(--line); }
+  .score.good { color:var(--lime); background:#1c2814; } .score.mid { color:var(--amber); background:#2a2214; } .score.bad { color:var(--rose); background:#2a1816; }
+  .name { font-weight:680; font-size:16px; }
+  .ca { font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); margin-top:3px; word-break:break-all; }
+  .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .tag { font-size:11px; border-radius:999px; padding:3px 7px; background:#1e261c; color:var(--muted); }
+  .tag.ok { color:var(--ok); } .tag.bad { color:var(--rose); } .tag.fomo { color:#17200c; background:var(--amber); }
+  .stats { text-align:right; font-family:"IBM Plex Mono",monospace; font-size:12px; line-height:1.55; }
+  .up { color:var(--ok); } .down { color:var(--rose); }
+  .empty { padding:28px 18px; color:var(--muted); }
+  .kv { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:6px 0; border-bottom:1px dashed #2a3428; }
+  .kv span { color:var(--muted); }
+  .log { max-height:140px; overflow:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); }
+  .log div { padding:5px 0; border-bottom:1px solid #243024; }
+  footer { padding:0 24px 22px; color:var(--muted); font-size:12px; line-height:1.5; }
+  @media (max-width:1100px) { main { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
+<div class="banner" id="fileBanner">Halaman ini dibuka sebagai file lokal. Browser memblokir API dari situ. Jalankan <b>python3 -m http.server 8080</b> di folder ini, lalu buka http://localhost:8080.</div>
 <header>
-  <div class="brand">
-    <div class="scope" aria-hidden="true"></div>
-    <div>
-      <h1>JARUM <span>5/6</span></h1>
-      <div class="sub">Pemindai token baru yang sudah bertahan ±5–6 jam · Solana + Robinhood Chain · terhubung ke FOMO</div>
-    </div>
+  <div>
+    <h1>JARUM <span>5/6</span></h1>
+    <div class="sub">Pool sungguhan Solana + Robinhood Chain, umur sekitar 5–6 jam, siap diserahkan ke FOMO</div>
   </div>
   <div class="pills">
-    <div class="pill on" id="srcPill">sumber: menunggu</div>
+    <div class="pill" id="srcPill">menunggu</div>
     <div class="pill" id="clockPill">—</div>
   </div>
 </header>
@@ -136,393 +81,276 @@
       <option value="robinhood">Robinhood Chain saja</option>
     </select>
     <div class="row2">
-      <div>
-        <label>Umur min (jam)</label>
-        <input id="ageMin" type="number" min="1" max="24" step="0.5" value="5" />
-      </div>
-      <div>
-        <label>Umur max (jam)</label>
-        <input id="ageMax" type="number" min="1" max="48" step="0.5" value="6.5" />
-      </div>
+      <div><label>Umur min (jam)</label><input id="ageMin" type="number" min="0" max="48" step="0.5" value="5" /></div>
+      <div><label>Umur max (jam)</label><input id="ageMax" type="number" min="0.5" max="72" step="0.5" value="6.5" /></div>
     </div>
     <div class="row2">
-      <div>
-        <label>Likuiditas min (USD)</label>
-        <input id="minLiq" type="number" min="0" step="500" value="8000" />
-      </div>
-      <div>
-        <label>Skor anti-rug min</label>
-        <input id="minScore" type="number" min="0" max="100" value="62" />
-      </div>
+      <div><label>Likuiditas min (USD)</label><input id="minLiq" type="number" min="0" step="500" value="8000" /></div>
+      <div><label>Skor anti-rug min</label><input id="minScore" type="number" min="0" max="100" value="62" /></div>
     </div>
     <div class="checks">
-      <label><input type="checkbox" id="needSells" checked /> Wajib ada jual (bukan honeypot kasar)</label>
-      <label><input type="checkbox" id="needBuyers" checked /> Pembeli unik > 8 dalam 6 jam</label>
-      <label><input type="checkbox" id="blockDump" checked /> Buang yang jatuh > 70% / 1 jam</label>
-      <label><input type="checkbox" id="fomoOnly" /> Hanya yang panas di sinyal FOMO</label>
+      <label><input type="checkbox" id="needSells" checked /> Wajib ada jual</label>
+      <label><input type="checkbox" id="needBuyers" checked /> Pembeli / beli > 8</label>
+      <label><input type="checkbox" id="blockDump" checked /> Buang dump > 70% / 1 jam</label>
     </div>
     <button class="primary" id="scanBtn">Pindai ulang</button>
-    <button class="ghost" id="widenBtn">Lebarkan ke 4–8 jam</button>
-    <div class="note">Jendela 5–6 jam sengaja melewati rug instan di menit pertama. Bukan jaminan. Mayoritas rug Solana 2026 lolos cek mint/LP klasik — skor di sini menimbang distribusi transaksi, kedalaman, dan apakah ada sisi jual.</div>
-    <h2 style="margin-top:18px">Kunci FOMO API</h2>
-    <label>Opsional · disimpan hanya di browser ini</label>
-    <input id="fomoKey" type="password" placeholder="fomoapi.io key, kosongkan jika belum" autocomplete="off" />
-    <button class="ghost" id="saveKey">Simpan kunci lokal</button>
+    <button class="ghost" id="widenBtn">Lebarkan ke 3–12 jam</button>
+    <h2 style="margin-top:18px">Cek kontrak</h2>
+    <label>Tempel mint Solana atau 0x Robinhood</label>
+    <input id="manual" type="text" placeholder="kontrak token" autocomplete="off" />
+    <button class="ghost" id="checkBtn">Cek & skor</button>
+    <div class="note">Tidak ada token contoh. Kalau jendela 5–6 jam kosong, daftar di bawahnya adalah pool live di luar jendela, dan tombol FOMO-nya dikunci.</div>
   </aside>
   <section>
-    <div class="feed-head">
-      <strong id="feedTitle">Antrian bidikan</strong>
-      <span class="meta" id="feedMeta">—</span>
-    </div>
-    <div class="list" id="list"></div>
+    <div class="feed-head"><strong id="feedTitle">Antrian bidikan</strong><span class="meta" id="feedMeta">—</span></div>
+    <div id="list"></div>
   </section>
-  <div class="ticket" id="ticket">
+  <div class="ticket">
     <h2>Tiket FOMO</h2>
-    <div class="meta">Pilih token di tengah</div>
-    <div id="ticketBody"></div>
-    <h2 style="margin-top:18px">Jurnal kertas</h2>
+    <div id="ticketBody"><div class="meta">Pilih token yang lolos filter.</div></div>
+    <h2 style="margin-top:18px">Jurnal</h2>
     <div class="log" id="log"></div>
   </div>
 </main>
-<footer>
-  JARUM tidak meminta seed phrase atau private key. Tombol beli menyiapkan nominal, menyalin kontrak, lalu membuka fomo.family supaya tanda tangan tetap di dompetmu.
-  Skor anti-rug adalah heuristik publik (umur, likuiditas, rasio beli/jual, pembeli unik, dump 1 jam) — bukan audit. Token berumur 5–6 jam tetap bisa soft-rug.
-  Bukan nasihat finansial.
-</footer>
+<footer>JARUM tidak meminta seed phrase. Beli hanya menyalin kontrak sungguhan lalu membuka fomo.family; tanda tangan tetap di akun FOMO-mu. Skor anti-rug adalah heuristik likuiditas, umur, sisi jual, dan dump — bukan audit.</footer>
 <script>
 const $ = (id) => document.getElementById(id);
-const STATE = { rows: [], selected: null, source: "menunggu" };
-const QUOTES = { solana: "SOL", robinhood: "ETH" };
+const STATE = { rows: [], selected: null, source: "menunggu", error: "" };
+if (location.protocol === "file:") $("fileBanner").style.display = "block";
 
-function hoursAgo(iso) {
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return null;
-  return (Date.now() - t) / 36e5;
-}
 function money(n) {
-  if (n == null || !Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "—";
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "jt";
   if (n >= 1000) return "$" + (n / 1000).toFixed(1) + "rb";
-  return "$" + n.toFixed(0);
+  return "$" + Math.round(n);
 }
-function short(a) {
-  if (!a) return "—";
-  return a.slice(0, 4) + "…" + a.slice(-4);
-}
-function pct(n) {
-  if (n == null || !Number.isFinite(Number(n))) return "—";
-  const v = Number(n);
-  return (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+function short(a) { return a ? a.slice(0, 4) + "…" + a.slice(-4) : "—"; }
+function pct(n) { return Number.isFinite(n) ? (n >= 0 ? "+" : "") + n.toFixed(1) + "%" : "—"; }
+function validMint(chain, mint) {
+  if (chain === "solana") return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint);
+  return /^0x[a-fA-F0-9]{40}$/.test(mint);
 }
 
 function scoreToken(t) {
   const flags = [];
-  let score = 42;
-  const age = t.ageH;
-  if (age >= 5 && age <= 6.5) { score += 16; flags.push(["ok", "umur 5–6 jam"]); }
-  else if (age >= 4 && age <= 8) { score += 8; flags.push(["ok", "umur dekat jendela"]); }
-  else flags.push(["bad", "di luar jendela"]);
-
+  let score = 40;
+  if (t.ageH >= 5 && t.ageH <= 6.5) { score += 16; flags.push(["ok", "umur 5–6 jam"]); }
+  else if (t.ageH >= 3 && t.ageH <= 12) { score += 6; flags.push(["ok", "umur " + t.ageH.toFixed(1) + " jam"]); }
+  else flags.push(["bad", "umur " + (t.ageH == null ? "tak diketahui" : t.ageH.toFixed(1) + " jam")]);
   if (t.liq >= 25000) { score += 14; flags.push(["ok", "likuiditas dalam"]); }
   else if (t.liq >= 8000) { score += 8; flags.push(["ok", "likuiditas cukup"]); }
   else { score -= 12; flags.push(["bad", "likuiditas tipis"]); }
-
-  const buys = t.buys6 || 0, sells = t.sells6 || 0, buyers = t.buyers6 || 0;
-  if (sells > 0) { score += 8; flags.push(["ok", "ada sisi jual"]); }
-  else { score -= 18; flags.push(["bad", "belum ada jual"]); }
-  if (buyers >= 20) { score += 10; flags.push(["ok", buyers + " pembeli"]); }
-  else if (buyers >= 8) { score += 4; flags.push(["ok", buyers + " pembeli"]); }
+  if (t.sells6 > 0) { score += 8; flags.push(["ok", "ada sisi jual"]); }
+  else { score -= 16; flags.push(["bad", "belum ada jual"]); }
+  const buyers = t.buyers6 || 0;
+  if (buyers >= 20) { score += 10; flags.push(["ok", buyers + " beli"]); }
+  else if (buyers >= 8) { score += 4; flags.push(["ok", buyers + " beli"]); }
   else { score -= 8; flags.push(["bad", "pembeli sedikit"]); }
-  if (buys > 0 && sells > 0) {
-    const ratio = buys / (buys + sells);
-    if (ratio > 0.35 && ratio < 0.82) { score += 6; flags.push(["ok", "aliran dua arah"]); }
-    if (ratio >= 0.9) { score -= 6; flags.push(["bad", "hampir semua beli"]); }
-  }
-  const h1 = Number(t.chg1);
-  if (Number.isFinite(h1) && h1 <= -70) { score -= 20; flags.push(["bad", "dump 1 jam"]); }
-  else if (Number.isFinite(h1) && h1 > -25) { score += 4; }
+  if (Number.isFinite(t.chg1) && t.chg1 <= -70) { score -= 20; flags.push(["bad", "dump 1 jam"]); }
+  else if (Number.isFinite(t.chg1) && t.chg1 > -25) score += 4;
   if (t.vol6 > 0 && t.liq > 0) {
     const turn = t.vol6 / t.liq;
-    if (turn >= 0.4 && turn <= 12) score += 6;
+    if (turn >= 0.3 && turn <= 12) score += 6;
     if (turn > 40) { score -= 8; flags.push(["bad", "volume tidak wajar"]); }
   }
-  if (t.fomoHeat >= 60) { score += 6; flags.push(["fomo", "panas FOMO"]); }
-  else if (t.fomoHeat >= 35) flags.push(["fomo", "sinyal FOMO"]);
-  score = Math.max(0, Math.min(99, Math.round(score)));
-  return { score, flags };
+  t.fomoHeat = Math.max(0, Math.min(99, Math.round(Math.min(40, buyers * 1.2) + Math.min(25, Math.log10((t.vol6 || 0) + 1) * 8) + (t.sells6 > 0 ? 10 : 0))));
+  if (t.fomoHeat >= 45) flags.push(["fomo", "panas FOMO " + t.fomoHeat]);
+  t.score = Math.max(0, Math.min(99, Math.round(score)));
+  t.flags = flags;
+  return t;
 }
 
-function fomoHeat(t) {
-  const buyers = t.buyers6 || 0;
-  const sells = t.sells6 || 0;
-  const vol = t.vol6 || 0;
-  let h = Math.min(40, buyers * 1.4) + Math.min(25, Math.log10(vol + 1) * 8);
-  if (sells > 0 && buyers > sells) h += 12;
-  if (t.ageH >= 5 && t.ageH <= 6.5) h += 10;
-  return Math.max(0, Math.min(99, Math.round(h)));
+function fromPair(p) {
+  const chain = p.chainId;
+  if (chain !== "solana" && chain !== "robinhood") return null;
+  const mint = p.baseToken?.address;
+  if (!mint || !validMint(chain, mint)) return null;
+  const quote = (p.quoteToken?.symbol || "").toUpperCase();
+  if (chain === "solana" && !["SOL", "USDC", "USDT"].includes(quote)) return null;
+  if (chain === "robinhood" && !["ETH", "WETH", "USDC", "USDT"].includes(quote)) return null;
+  const ageH = p.pairCreatedAt ? (Date.now() - p.pairCreatedAt) / 36e5 : null;
+  if (ageH == null || ageH < 0 || ageH > 72) return null;
+  const tx = p.txns?.h6 || p.txns?.h1 || {};
+  return scoreToken({
+    chain, symbol: p.baseToken?.symbol || "?",
+    name: (p.baseToken?.name || p.baseToken?.symbol || "?") + " / " + (p.quoteToken?.symbol || ""),
+    mint, pair: p.pairAddress, dex: p.dexId || "dex", ageH,
+    price: Number(p.priceUsd), liq: Number(p.liquidity?.usd) || 0, fdv: Number(p.fdv) || 0,
+    vol6: Number(p.volume?.h6 || p.volume?.h1 || 0),
+    buys6: tx.buys || 0, sells6: tx.sells || 0, buyers6: tx.buys || 0,
+    chg1: Number(p.priceChange?.h1), chg6: Number(p.priceChange?.h6),
+    url: p.url || ("https://dexscreener.com/" + chain + "/" + p.pairAddress)
+  });
 }
 
-function fromGecko(item, chain) {
-  const a = item.attributes || {};
-  const rel = item.relationships || {};
-  const baseId = rel.base_token?.data?.id || "";
-  const mint = baseId.includes("_") ? baseId.split("_").slice(1).join("_") : "";
-  const name = a.name || "—";
-  const symbol = name.split("/")[0].trim();
-  const ageH = hoursAgo(a.pool_created_at);
-  const tx = a.transactions?.h6 || a.transactions?.h1 || {};
-  const row = {
-    chain,
-    symbol,
-    name,
-    mint,
-    pair: a.address,
-    dex: rel.dex?.data?.id || "dex",
-    ageH,
-    created: a.pool_created_at,
-    price: Number(a.base_token_price_usd),
-    liq: Number(a.reserve_in_usd) || 0,
-    fdv: Number(a.fdv_usd) || 0,
-    vol6: Number(a.volume_usd?.h6 || a.volume_usd?.h1 || 0),
-    buys6: tx.buys || 0,
-    sells6: tx.sells || 0,
-    buyers6: tx.buyers || 0,
-    chg1: Number(a.price_change_percentage?.h1),
-    chg6: Number(a.price_change_percentage?.h6),
-    url: chain === "solana"
-      ? "https://dexscreener.com/solana/" + (a.address || "")
-      : "https://dexscreener.com/robinhood/" + (a.address || "")
-  };
-  row.fomoHeat = fomoHeat(row);
-  const s = scoreToken(row);
-  row.score = s.score;
-  row.flags = s.flags;
-  return row;
+async function getJSON(url) {
+  let last = "gagal";
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(url, { headers: { accept: "application/json" } });
+      if (res.status === 429) { last = "rate limit"; await new Promise((r) => setTimeout(r, 800 * (i + 1))); continue; }
+      if (!res.ok) throw new Error(res.status);
+      return await res.json();
+    } catch (e) { last = e.message || String(e); await new Promise((r) => setTimeout(r, 400)); }
+  }
+  throw new Error(last);
 }
 
-async function fetchGecko(network, pages) {
+async function pairsFor(chain, addresses) {
   const out = [];
-  for (let p = 1; p <= pages; p++) {
-    const url = "https://api.geckoterminal.com/api/v2/networks/" + network + "/new_pools?page=" + p;
-    const res = await fetch(url, { headers: { accept: "application/json" } });
-    if (!res.ok) throw new Error(network + " " + res.status);
-    const json = await res.json();
-    (json.data || []).forEach((item) => out.push(fromGecko(item, network === "solana" ? "solana" : "robinhood")));
-    const oldest = out.reduce((m, r) => Math.max(m, r.ageH || 0), 0);
-    if (oldest > 8) break;
+  const uniq = [...new Set(addresses)].slice(0, 60);
+  for (let i = 0; i < uniq.length; i += 30) {
+    const batch = uniq.slice(i, i + 30).join(",");
+    const data = await getJSON("https://api.dexscreener.com/tokens/v1/" + chain + "/" + batch);
+    (Array.isArray(data) ? data : []).forEach((p) => { const row = fromPair(p); if (row) out.push(row); });
   }
   return out;
 }
 
-async function fetchDexSearch(q, chain) {
-  const res = await fetch("https://api.dexscreener.com/latest/dex/search?q=" + encodeURIComponent(q));
-  if (!res.ok) throw new Error("dex " + res.status);
-  const json = await res.json();
-  return (json.pairs || []).filter((p) => p.chainId === chain).slice(0, 40).map((p) => {
-    const ageH = p.pairCreatedAt ? (Date.now() - p.pairCreatedAt) / 36e5 : null;
-    const row = {
-      chain,
-      symbol: p.baseToken?.symbol || "?",
-      name: (p.baseToken?.name || p.baseToken?.symbol || "?") + " / " + (p.quoteToken?.symbol || ""),
-      mint: p.baseToken?.address || "",
-      pair: p.pairAddress,
-      dex: p.dexId || "dex",
-      ageH,
-      created: p.pairCreatedAt ? new Date(p.pairCreatedAt).toISOString() : null,
-      price: Number(p.priceUsd),
-      liq: Number(p.liquidity?.usd) || 0,
-      fdv: Number(p.fdv) || 0,
-      vol6: Number(p.volume?.h6 || p.volume?.h24 || 0),
-      buys6: p.txns?.h6?.buys || p.txns?.h1?.buys || 0,
-      sells6: p.txns?.h6?.sells || p.txns?.h1?.sells || 0,
-      buyers6: p.txns?.h6?.buys || 0,
-      chg1: Number(p.priceChange?.h1),
-      chg6: Number(p.priceChange?.h6),
-      url: p.url
-    };
-    row.fomoHeat = fomoHeat(row);
-    const s = scoreToken(row);
-    row.score = s.score;
-    row.flags = s.flags;
-    return row;
-  });
-}
-
-function snapshot() {
-  const now = Date.now();
-  const seeds = [
-    ["solana", "MIRA", "Mira / SOL", "pump-fun", 5.4, 18400, 9200, 41, 19, 28, 6, 22],
-    ["solana", "KITE", "Kite / SOL", "raydium", 5.9, 41000, 26000, 88, 54, 61, -8, 14],
-    ["solana", "NOVA", "Nova Cat / SOL", "meteora", 5.1, 7600, 1400, 9, 1, 6, -12, 40],
-    ["robinhood", "CRUMB", "Crumb / ETH", "uniswap-v4", 5.6, 22000, 15000, 36, 22, 24, 4, 11],
-    ["robinhood", "VEIL", "Veil / ETH", "uniswap-v4", 6.2, 9800, 4100, 14, 11, 12, -18, -6],
-    ["solana", "DUMP", "Dumpster / SOL", "pump-fun", 5.2, 3200, 18000, 70, 4, 9, -82, -90]
-  ];
-  return seeds.map((s, i) => {
-    const row = {
-      chain: s[0], symbol: s[1], name: s[2], mint: "Contoh" + i + "MintTidakLivexxxxxxxx",
-      pair: "contoh", dex: s[3], ageH: s[4],
-      created: new Date(now - s[4] * 36e5).toISOString(),
-      price: 0.00001 * (i + 3), liq: s[5], fdv: s[5] * 8,
-      vol6: s[6], buys6: s[7], sells6: s[8], buyers6: s[9], chg1: s[10], chg6: s[11],
-      url: s[0] === "solana" ? "https://dexscreener.com/solana" : "https://dexscreener.com/robinhood",
-      demo: true
-    };
-    row.fomoHeat = fomoHeat(row);
-    const sc = scoreToken(row);
-    row.score = sc.score; row.flags = sc.flags;
-    return row;
-  });
+async function scan() {
+  if (location.protocol === "file:") { log("Diblokir: buka lewat http, bukan file lokal"); return; }
+  $("scanBtn").disabled = true;
+  $("feedMeta").textContent = "memindai DexScreener…";
+  const errors = [];
+  const found = { solana: [], robinhood: [] };
+  try {
+    const profiles = await getJSON("https://api.dexscreener.com/token-profiles/latest/v1");
+    (Array.isArray(profiles) ? profiles : []).forEach((p) => { if (found[p.chainId]) found[p.chainId].push(p.tokenAddress); });
+  } catch (e) { errors.push("profil:" + e.message); }
+  try {
+    const boosts = await getJSON("https://api.dexscreener.com/token-boosts/latest/v1");
+    (Array.isArray(boosts) ? boosts : []).forEach((p) => { if (found[p.chainId]) found[p.chainId].push(p.tokenAddress); });
+  } catch (e) { errors.push("boost:" + e.message); }
+  const rows = [];
+  if ($("chain").value !== "robinhood" && found.solana.length) {
+    try { rows.push(...await pairsFor("solana", found.solana)); } catch (e) { errors.push("sol:" + e.message); }
+  }
+  if ($("chain").value !== "solana" && found.robinhood.length) {
+    try { rows.push(...await pairsFor("robinhood", found.robinhood)); } catch (e) { errors.push("rh:" + e.message); }
+  }
+  if (!found.robinhood.length && $("chain").value !== "solana") {
+    try {
+      const search = await getJSON("https://api.dexscreener.com/latest/dex/search?q=ETH");
+      (search.pairs || []).filter((p) => p.chainId === "robinhood").forEach((p) => { const row = fromPair(p); if (row) rows.push(row); });
+    } catch (e) { errors.push("cari-rh:" + e.message); }
+  }
+  const seen = new Set();
+  STATE.rows = rows.filter((r) => seen.has(r.chain + r.mint) ? false : seen.add(r.chain + r.mint));
+  STATE.rows.sort((a, b) => a.ageH - b.ageH);
+  STATE.error = errors.join(", ");
+  STATE.source = STATE.rows.length ? "live DexScreener" : "tidak ada data";
+  STATE.selected = null;
+  $("scanBtn").disabled = false;
+  render();
+  log("Pindai " + STATE.rows.length + " pool live" + (STATE.error ? " · " + STATE.error : ""));
 }
 
 function pass(row) {
-  const minA = Number($("ageMin").value) || 5;
-  const maxA = Number($("ageMax").value) || 6.5;
   const chain = $("chain").value;
   if (chain !== "both" && row.chain !== chain) return false;
-  if (row.ageH == null || row.ageH < minA || row.ageH > maxA) return false;
+  if (row.ageH < Number($("ageMin").value) || row.ageH > Number($("ageMax").value)) return false;
   if (row.liq < Number($("minLiq").value || 0)) return false;
   if (row.score < Number($("minScore").value || 0)) return false;
   if ($("needSells").checked && !(row.sells6 > 0)) return false;
   if ($("needBuyers").checked && !((row.buyers6 || 0) > 8)) return false;
   if ($("blockDump").checked && Number(row.chg1) <= -70) return false;
-  if ($("fomoOnly").checked && row.fomoHeat < 45) return false;
   return true;
 }
 
+function card(r, armed) {
+  const cls = r.score >= 75 ? "good" : r.score >= 60 ? "mid" : "bad";
+  const chg = Number.isFinite(r.chg6) ? r.chg6 : r.chg1;
+  return `<article class="card ${STATE.selected === r ? "active" : ""}" data-mint="${r.mint}">
+    <div class="score ${cls}">${r.score}</div>
+    <div><div class="name">${r.symbol} <span class="meta">${r.chain === "solana" ? "SOL" : "RH"}</span></div>
+    <div class="ca">${r.mint}</div>
+    <div class="tags">${r.flags.slice(0, 4).map((f) => `<span class="tag ${f[0]}">${f[1]}</span>`).join("")}${armed ? "" : '<span class="tag bad">di luar jendela</span>'}</div></div>
+    <div class="stats"><div>${money(r.liq)} liq</div><div>${money(r.vol6)} vol</div><div class="${chg >= 0 ? "up" : "down"}">${pct(chg)}</div><div>${r.ageH.toFixed(1)} jam</div></div>
+  </article>`;
+}
+
 function render() {
-  const rows = STATE.rows.filter(pass).sort((a, b) => b.score - a.score || b.fomoHeat - a.fomoHeat);
-  $("feedTitle").textContent = rows.length + " bidikan lolos filter";
-  $("feedMeta").textContent = STATE.source + " · " + STATE.rows.length + " mentah";
-  $("srcPill").textContent = "sumber: " + STATE.source;
+  const ready = STATE.rows.filter(pass).sort((a, b) => b.score - a.score);
+  const rest = STATE.rows.filter((r) => !ready.includes(r)).slice(0, 8);
+  $("feedTitle").textContent = ready.length + " siap di jendela";
+  $("feedMeta").textContent = STATE.source + " · " + STATE.rows.length + " pool";
+  $("srcPill").textContent = STATE.source;
+  $("srcPill").className = "pill" + (STATE.rows.length ? " on" : " bad");
   const list = $("list");
-  if (!rows.length) {
-    list.innerHTML = '<div class="empty">Tidak ada token di jendela umur ini. Lebarkan jam, turunkan likuiditas, atau pindai ulang. Pool baru sering belum berumur 5 jam di halaman pertama API.</div>';
+  if (!STATE.rows.length) {
+    list.innerHTML = '<div class="empty">Belum ada pool live. ' + (STATE.error || "API sedang membatasi, tunggu sebentar lalu pindai ulang.") + '</div>';
     return;
   }
-  list.innerHTML = rows.map((r, idx) => {
-    const cls = r.score >= 75 ? "good" : r.score >= 60 ? "mid" : "bad";
-    const chg = Number.isFinite(r.chg6) ? r.chg6 : r.chg1;
-    return `<article class="card ${STATE.selected === r ? "active" : ""}" data-i="${idx}">
-      <div class="score ${cls}">${r.score}</div>
-      <div>
-        <div class="name">${r.symbol} <span class="meta">${r.chain === "solana" ? "SOL" : "RH"}</span></div>
-        <div class="ca">${r.demo ? "SNAPSHOT CONTOH · " : ""}${short(r.mint)} · ${r.dex} · ${r.ageH.toFixed(1)} jam</div>
-        <div class="tags">${r.flags.slice(0, 4).map((f) => `<span class="tag ${f[0]}">${f[1]}</span>`).join("")}</div>
-      </div>
-      <div class="stats">
-        <div>${money(r.liq)} liq</div>
-        <div>${money(r.vol6)} vol 6j</div>
-        <div class="${chg >= 0 ? "up" : "down"}">${pct(chg)} 6j</div>
-      </div>
-    </article>`;
-  }).join("");
+  list.innerHTML = ready.map((r) => card(r, true)).join("")
+    + (rest.length ? '<div class="feed-head"><strong>Live, di luar filter</strong><span class="meta">FOMO dikunci</span></div>' + rest.map((r) => card(r, false)).join("") : "");
   [...list.querySelectorAll(".card")].forEach((el) => {
-    el.onclick = () => { STATE.selected = rows[Number(el.dataset.i)]; render(); renderTicket(); };
+    el.onclick = () => { STATE.selected = STATE.rows.find((r) => r.mint === el.dataset.mint); render(); renderTicket(); };
   });
-  if (!STATE.selected || !rows.includes(STATE.selected)) STATE.selected = rows[0];
+  if (STATE.selected && !STATE.rows.includes(STATE.selected)) STATE.selected = ready[0] || null;
   renderTicket();
 }
 
 function renderTicket() {
   const r = STATE.selected;
   const box = $("ticketBody");
-  if (!r) { box.innerHTML = ""; return; }
-  box.innerHTML = `
-    <h3>${r.symbol}</h3>
-    <div class="meta">${r.name} · ${r.chain === "solana" ? "Solana" : "Robinhood Chain"} · skor ${r.score} · panas FOMO ${r.fomoHeat}</div>
+  if (!r) { box.innerHTML = '<div class="meta">Pilih token.</div>'; return; }
+  const armed = pass(r);
+  box.innerHTML = `<h3 style="margin:4px 0">${r.symbol}</h3>
+    <div class="meta">${r.name} · ${r.chain === "solana" ? "Solana" : "Robinhood Chain"} · skor ${r.score}</div>
     <div class="kv"><span>Kontrak</span><b>${short(r.mint)}</b></div>
-    <div class="kv"><span>Umur pool</span><b>${r.ageH.toFixed(2)} jam</b></div>
+    <div class="kv"><span>Umur</span><b>${r.ageH.toFixed(2)} jam</b></div>
     <div class="kv"><span>Harga</span><b>${Number.isFinite(r.price) ? "$" + r.price.toPrecision(4) : "—"}</b></div>
     <div class="kv"><span>Likuiditas</span><b>${money(r.liq)}</b></div>
-    <div class="kv"><span>Beli / jual 6j</span><b>${r.buys6} / ${r.sells6}</b></div>
-    <div class="kv"><span>Pembeli unik</span><b>${r.buyers6}</b></div>
-    <label>Nominal beli (USD)</label>
-    <input id="usd" type="number" min="5" step="5" value="25" />
-    <label>Slippage maks (%)</label>
-    <input id="slip" type="number" min="0.5" max="30" step="0.5" value="8" />
-    <button class="primary" id="arm">Siapkan & buka FOMO</button>
+    <div class="kv"><span>Beli / jual</span><b>${r.buys6} / ${r.sells6}</b></div>
+    <label>Nominal (USD)</label><input id="usd" type="number" min="5" step="5" value="25" />
+    <label>Slippage maks (%)</label><input id="slip" type="number" min="1" max="30" step="0.5" value="8" />
+    <button class="primary" id="arm" ${armed ? "" : "disabled"}>${armed ? "Salin & buka FOMO" : "Belum lolos filter"}</button>
     <button class="ghost" id="copy">Salin kontrak</button>
-    <button class="warn" id="chart">Buka chart DexScreener</button>
-    <div class="warnbox">Eksekusi nyata hanya di FOMO (self-custodial, gas disponsori di banyak rute). JARUM tidak menandatangani transaksi dan tidak menyimpan kunci. Fee FOMO spot sekitar 0,50% di pita atas, plus biaya jaringan di luar Solana.</div>
-  `;
-  $("arm").onclick = () => armBuy(r);
-  $("copy").onclick = () => navigator.clipboard.writeText(r.mint).then(() => log("Kontrak disalin " + r.symbol));
+    <button class="warn" id="chart">Buka chart</button>
+    <div class="warnbox">${armed ? "Kontrak ini dari DexScreener. FOMO tidak menerima order dari halaman ini; kamu menempel dan menandatangani sendiri." : "Token ini live, tapi di luar umur, likuiditas, atau skor. Beli dikunci supaya tidak nyasar."}</div>`;
+  $("copy").onclick = () => navigator.clipboard.writeText(r.mint).then(() => log("Disalin " + r.symbol));
   $("chart").onclick = () => window.open(r.url, "_blank", "noopener");
+  if (armed) $("arm").onclick = () => armBuy(r);
+}
+
+function armBuy(r) {
+  const usd = Number($("usd").value || 0);
+  const slip = Number($("slip").value || 8);
+  if (usd < 5) return log("Nominal minimum praktis sekitar $5");
+  const impact = r.liq > 0 ? (usd / r.liq) * 100 : 99;
+  if (impact > 8) return log("Ditolak: impact " + impact.toFixed(1) + "% pada " + r.symbol);
+  navigator.clipboard.writeText(r.mint).then(() => log("SIAP " + r.symbol + " $" + usd + " slip " + slip + "% · " + r.mint));
+  window.open("https://fomo.family", "_blank", "noopener");
+}
+
+async function checkManual() {
+  const mint = $("manual").value.trim();
+  const chain = mint.startsWith("0x") ? "robinhood" : "solana";
+  if (!validMint(chain, mint)) return log("Kontrak tidak valid");
+  try {
+    const data = await getJSON("https://api.dexscreener.com/tokens/v1/" + chain + "/" + mint);
+    const rows = (Array.isArray(data) ? data : []).map(fromPair).filter(Boolean);
+    if (!rows.length) return log("Tidak ketemu di DexScreener");
+    rows.sort((a, b) => b.liq - a.liq);
+    const row = rows[0];
+    STATE.rows = [row, ...STATE.rows.filter((r) => r.mint !== row.mint)];
+    STATE.selected = row;
+    STATE.source = "cek manual";
+    render();
+    log("Dicek " + row.symbol + " skor " + row.score);
+  } catch (e) { log("Cek gagal: " + e.message); }
 }
 
 function log(text) {
   const row = document.createElement("div");
   row.textContent = new Date().toLocaleTimeString("id-ID") + "  " + text;
   $("log").prepend(row);
-  const book = JSON.parse(localStorage.getItem("jarum-log") || "[]");
-  book.unshift({ t: Date.now(), text });
-  localStorage.setItem("jarum-log", JSON.stringify(book.slice(0, 30)));
 }
-
-function armBuy(r) {
-  const usd = Number($("usd").value || 0);
-  const slip = Number($("slip").value || 8);
-  if (usd < 5) return log("Nominal minimum praktis FOMO sekitar $5");
-  const impact = r.liq > 0 ? (usd / r.liq) * 100 : 99;
-  if (impact > 8) {
-    log("Ditolak kertas: impact ~" + impact.toFixed(1) + "% > 8% untuk " + r.symbol);
-    return;
-  }
-  navigator.clipboard.writeText(r.mint).catch(() => {});
-  log("SIAP " + r.symbol + " $" + usd + " slip " + slip + "% · impact " + impact.toFixed(2) + "% · " + r.chain);
-  const q = encodeURIComponent(r.symbol + " " + r.mint);
-  window.open("https://fomo.family/?q=" + q, "_blank", "noopener");
-}
-
-async function scan() {
-  $("scanBtn").disabled = true;
-  $("feedMeta").textContent = "memindai…";
-  const chain = $("chain").value;
-  const bags = [];
-  const errors = [];
-  try {
-    if (chain !== "robinhood") bags.push(await fetchGecko("solana", 6));
-  } catch (e) { errors.push("solana:" + e.message); }
-  try {
-    if (chain !== "solana") {
-      try { bags.push(await fetchGecko("robinhood", 3)); }
-      catch { bags.push(await fetchDexSearch("ETH", "robinhood")); }
-    }
-  } catch (e) { errors.push("rh:" + e.message); }
-  let rows = bags.flat().filter((r) => r.mint && r.ageH != null);
-  const seen = new Set();
-  rows = rows.filter((r) => (seen.has(r.chain + r.mint) ? false : seen.add(r.chain + r.mint)));
-  if (!rows.length) {
-    rows = snapshot();
-    STATE.source = "snapshot contoh" + (errors.length ? " (" + errors.join(", ") + ")" : "");
-  } else {
-    STATE.source = "live" + (errors.length ? " sebagian" : "");
-  }
-  STATE.rows = rows;
-  STATE.selected = null;
-  $("scanBtn").disabled = false;
-  render();
-  log("Pindai selesai · " + rows.length + " pool · " + STATE.source);
-}
-
-function loadLog() {
-  const book = JSON.parse(localStorage.getItem("jarum-log") || "[]");
-  $("log").innerHTML = book.map((x) => `<div>${new Date(x.t).toLocaleTimeString("id-ID")}  ${x.text}</div>`).join("");
-  const key = localStorage.getItem("jarum-fomo-key");
-  if (key) $("fomoKey").value = key;
-}
-
 $("scanBtn").onclick = scan;
-$("widenBtn").onclick = () => { $("ageMin").value = 4; $("ageMax").value = 8; render(); };
-["chain", "ageMin", "ageMax", "minLiq", "minScore", "needSells", "needBuyers", "blockDump", "fomoOnly"]
-  .forEach((id) => $(id).addEventListener("change", render));
-$("saveKey").onclick = () => {
-  localStorage.setItem("jarum-fomo-key", $("fomoKey").value.trim());
-  log("Kunci FOMO disimpan lokal. Endpoint siap: GET https://fomoapi.io/v2/users/{handle}");
-};
+$("checkBtn").onclick = checkManual;
+$("widenBtn").onclick = () => { $("ageMin").value = 3; $("ageMax").value = 12; $("minLiq").value = 4000; render(); };
+["chain","ageMin","ageMax","minLiq","minScore","needSells","needBuyers","blockDump"].forEach((id) => $(id).addEventListener("change", render));
 setInterval(() => { $("clockPill").textContent = new Date().toLocaleString("id-ID", { hour12: false }); }, 1000);
-loadLog();
 scan();
 </script>
 </body>
