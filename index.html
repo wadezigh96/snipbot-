@@ -90,7 +90,7 @@
     </div>
     <div class="checks">
       <label><input type="checkbox" id="needSells" checked /> Wajib ada jual</label>
-      <label><input type="checkbox" id="needBuyers" checked /> Pembeli / beli > 8</label>
+      <label><input type="checkbox" id="needDev" checked /> Dev hanya 1 wallet, bukan kluster</label>
       <label><input type="checkbox" id="blockDump" checked /> Buang dump > 70% / 1 jam</label>
     </div>
     <button class="primary" id="scanBtn">Pindai ulang</button>
@@ -197,6 +197,27 @@ async function getJSON(url) {
   throw new Error(last);
 }
 
+function markDev(row, holders, deployer) {
+  const skip = /pool|lock|curve|factory|uniswap|raydium|meteora|pump|amm|vault/i;
+  const big = (holders || []).filter((h) => {
+    const pct = Number(h.pct ?? h.percentage ?? 0);
+    const label = (h.label || h.owner || h.address || "");
+    return pct >= 5 && !skip.test(String(label));
+  });
+  const insiders = (holders || []).filter((h) => h.insider === true || h.isInsider === true);
+  const cluster = Math.max(big.length, insiders.length);
+  row.devWallets = cluster;
+  if (!holders || !holders.length) {
+    row.devOk = null;
+    row.flags.push(["bad", "dev belum terindeks"]);
+    return row;
+  }
+  row.devOk = cluster <= 1;
+  row.flags.push(row.devOk ? ["ok", "dev 1 wallet"] : ["bad", cluster + " wallet dev/besar"]);
+  if (deployer) row.deployer = deployer;
+  if (!row.devOk) row.score = Math.max(0, row.score - 25);
+  return row;
+}
 function fromPons(x, market) {
   const mint = x.token;
   if (!validMint("robinhood", mint)) return null;
@@ -226,6 +247,7 @@ function fromPons(x, market) {
   if (x.graduated) { row.score = Math.min(99, row.score + 10); row.flags.unshift(["ok", "lulus, LP terkunci"]); }
   else row.flags.unshift(["ok", "curve " + (Number(x.graduationProgressPct) || 0).toFixed(0) + "%"]);
   if (devBuyEth >= 0.5) { row.score = Math.max(0, row.score - 12); row.flags.push(["bad", "dev buy " + devBuyEth.toFixed(2) + " ETH"]); }
+  markDev(row, market?.holders, x.deployer);
   row.score = Math.max(0, Math.min(99, Math.round(row.score)));
   return row;
 }
@@ -281,6 +303,27 @@ async function pairsFor(chain, addresses) {
   return out;
 }
 
+async function attachSolanaDev(rows) {
+  const targets = rows.filter((r) => r.chain === "solana").slice(0, 6);
+  for (const row of targets) {
+    try {
+      const report = await getJSON("https://api.rugcheck.xyz/v1/tokens/" + row.mint + "/report");
+      const networks = Array.isArray(report.insiderNetworks) ? report.insiderNetworks.length : 0;
+      const graph = Number(report.graphInsidersDetected) || 0;
+      markDev(row, report.topHolders, report.creator);
+      if (graph > 1 || networks > 1) {
+        row.devOk = false;
+        row.devWallets = Math.max(row.devWallets || 0, graph, networks);
+        row.flags.push(["bad", "kluster insider " + Math.max(graph, networks)]);
+        row.score = Math.max(0, row.score - 20);
+      }
+    } catch (e) {
+      row.devOk = null;
+      row.flags.push(["bad", "dev belum terindeks"]);
+    }
+  }
+}
+
 async function scan() {
   if (location.protocol === "file:") { log("Diblokir: buka lewat http, bukan file lokal"); return; }
   $("scanBtn").disabled = true;
@@ -313,6 +356,8 @@ async function scan() {
   }
   const seen = new Set();
   STATE.rows = rows.filter((r) => seen.has(r.chain + r.mint) ? false : seen.add(r.chain + r.mint));
+  try { await attachSolanaDev(STATE.rows.filter((r) => r.ageH >= Number($("ageMin").value) && r.ageH <= Number($("ageMax").value))); }
+  catch (e) { errors.push("dev:" + e.message); }
   STATE.rows.sort((a, b) => a.ageH - b.ageH);
   STATE.error = errors.join(", ");
   STATE.source = STATE.rows.some((r) => r.source === "pons") ? "Pons launchpad" : (STATE.rows.length ? "live DexScreener" : "tidak ada data");
@@ -330,6 +375,7 @@ function pass(row) {
   if (row.score < Number($("minScore").value || 0)) return false;
   if ($("needSells").checked && !(row.sells6 > 0)) return false;
   if ($("needBuyers").checked && !((row.buyers6 || 0) > 8)) return false;
+  if ($("needDev").checked && row.devOk !== true) return false;
   if ($("blockDump").checked && Number(row.chg1) <= -70) return false;
   return true;
 }
@@ -436,7 +482,7 @@ function log(text) {
 $("scanBtn").onclick = scan;
 $("checkBtn").onclick = checkManual;
 $("widenBtn").onclick = () => { $("ageMin").value = 3; $("ageMax").value = 12; $("minLiq").value = 4000; render(); };
-["chain","ageMin","ageMax","minLiq","minScore","needSells","needBuyers","blockDump"].forEach((id) => $(id).addEventListener("change", render));
+["chain","ageMin","ageMax","minLiq","minScore","needSells","needBuyers","needDev","blockDump"].forEach((id) => $(id).addEventListener("change", render));
 setInterval(() => { $("clockPill").textContent = new Date().toLocaleString("id-ID", { hour12: false }); }, 1000);
 scan();
 </script>
