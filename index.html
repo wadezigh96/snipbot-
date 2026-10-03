@@ -374,10 +374,10 @@ function pass(row) {
   if (row.ageH < Number($("ageMin").value) || row.ageH > Number($("ageMax").value)) return false;
   if (row.liq < Number($("minLiq").value || 0)) return false;
   if (row.score < Number($("minScore").value || 0)) return false;
-  if ($("needSells").checked && !(row.sells6 > 0)) return false;
-  if ($("needBuyers").checked && !((row.buyers6 || 0) > 8)) return false;
-  if ($("needDev").checked && row.devOk !== true) return false;
-  if ($("blockDump").checked && Number(row.chg1) <= -70) return false;
+  if ($("needSells")?.checked && !(row.sells6 > 0)) return false;
+  if ($("needBuyers")?.checked && !((row.buyers6 || 0) > 8)) return false;
+  if ($("needDev")?.checked && row.devOk !== true) return false;
+  if ($("blockDump")?.checked && Number(row.chg1) <= -70) return false;
   return true;
 }
 
@@ -485,10 +485,15 @@ $("checkBtn").onclick = checkManual;
 $("widenBtn").onclick = () => { $("ageMin").value = 3; $("ageMax").value = 12; $("minLiq").value = 4000; render(); };
 ["chain","ageMin","ageMax","minLiq","minScore","needSells","needBuyers","needDev","blockDump"].forEach((id) => $(id).addEventListener("change", render));
 setInterval(() => { $("clockPill").textContent = new Date().toLocaleString("id-ID", { hour12: false }); }, 1000);
-STATE.rows = (PONS_SNAPSHOT.items || []).map((x) => fromPons(x, x)).filter(Boolean);
-STATE.source = "snapshot Pons";
-render();
-scan();
+function boot() {
+  try {
+    STATE.rows = (PONS_SNAPSHOT.items || []).map((x) => fromPons(x, x)).filter(Boolean);
+    STATE.source = "snapshot Pons";
+    render();
+  } catch (e) { log("Gagal menggambar snapshot: " + e.message); }
+  scan();
+}
+boot();
 </script>
 </body>
 </html>
