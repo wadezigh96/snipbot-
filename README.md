@@ -1,6 +1,7 @@
 # JARUM 5/6
 
-Pemindai pool sungguhan Solana dan Robinhood Chain, umur default 5–6,5 jam, lalu salin kontrak ke FOMO.
+Robinhood diambil dari launchpad Pons: https://www.ponsfamily.com/launchpad
+Feed: `/api/pons-launches?explore=1`, jendela umur 5–6,5 jam. Solana tetap DexScreener.
 
 Buka yang sudah di-host:
 

@@ -64,7 +64,7 @@
 <header>
   <div>
     <h1>JARUM <span>5/6</span></h1>
-    <div class="sub">Pool sungguhan Solana + Robinhood Chain, umur sekitar 5–6 jam, siap diserahkan ke FOMO</div>
+    <div class="sub">Solana dari DexScreener. Robinhood dari launchpad Pons, disaring umur 5–6 jam, lalu diserahkan ke FOMO</div>
   </div>
   <div class="pills">
     <div class="pill" id="srcPill">menunggu</div>
@@ -184,16 +184,92 @@ function fromPair(p) {
 }
 
 async function getJSON(url) {
+  const routes = [url, "https://api.allorigins.win/raw?url=" + encodeURIComponent(url)];
   let last = "gagal";
-  for (let i = 0; i < 3; i++) {
-    try {
-      const res = await fetch(url, { headers: { accept: "application/json" } });
-      if (res.status === 429) { last = "rate limit"; await new Promise((r) => setTimeout(r, 800 * (i + 1))); continue; }
-      if (!res.ok) throw new Error(res.status);
-      return await res.json();
-    } catch (e) { last = e.message || String(e); await new Promise((r) => setTimeout(r, 400)); }
+  for (const route of routes) {
+    for (let i = 0; i < 2; i++) {
+      try {
+        const res = await fetch(route, { headers: { accept: "application/json" } });
+        if (res.status === 429) { last = "rate limit"; await new Promise((r) => setTimeout(r, 700 * (i + 1))); continue; }
+        if (!res.ok) throw new Error(res.status);
+        return await res.json();
+      } catch (e) { last = e.message || String(e); }
+    }
   }
   throw new Error(last);
+}
+
+function fromPons(x, market) {
+  const mint = x.token;
+  if (!validMint("robinhood", mint)) return null;
+  const ageH = x.launchedAt ? (Date.now() - new Date(x.launchedAt).getTime()) / 36e5 : null;
+  if (ageH == null || ageH < 0 || ageH > 72) return null;
+  const mcap = Number(market?.marketCapUsd ?? x.marketCapUsd);
+  const liq = Number(market?.liquidityUsd ?? x.liquidityUsd);
+  const trades = Array.isArray(market?.trades) ? market.trades : [];
+  const sells = trades.filter((t) => String(t.side || t.type || "").toLowerCase().includes("sell")).length;
+  const devBuyEth = Number(x.initialBuyWei || 0) / 1e18;
+  const row = scoreToken({
+    chain: "robinhood",
+    symbol: x.symbol || "?",
+    name: (x.name || x.symbol || "Pons") + " / " + (x.quoteAsset?.symbol || "ETH"),
+    mint, pair: x.pool, dex: x.graduated ? "pons-graduated" : "pons-curve",
+    ageH, price: Number(market?.priceUsd ?? x.priceUsd),
+    liq: Number.isFinite(liq) && liq > 0 ? liq : (Number.isFinite(mcap) ? mcap : 0),
+    fdv: Number.isFinite(mcap) ? mcap : 0,
+    vol6: Number(market?.volume24hUsd) || 0,
+    buys6: trades.length || (x.latestBuyAt ? 1 : 0),
+    sells6: sells || (x.graduated || Number(x.graduationProgressPct) > 1 ? 1 : 0),
+    buyers6: Number(market?.holdersCount) || 0,
+    chg1: Number(market?.changePct), chg6: Number(market?.changePct),
+    url: "https://www.ponsfamily.com/launchpad/" + mint,
+    source: "pons"
+  });
+  if (x.graduated) { row.score = Math.min(99, row.score + 10); row.flags.unshift(["ok", "lulus, LP terkunci"]); }
+  else row.flags.unshift(["ok", "curve " + (Number(x.graduationProgressPct) || 0).toFixed(0) + "%"]);
+  if (devBuyEth >= 0.5) { row.score = Math.max(0, row.score - 12); row.flags.push(["bad", "dev buy " + devBuyEth.toFixed(2) + " ETH"]); }
+  row.score = Math.max(0, Math.min(99, Math.round(row.score)));
+  return row;
+}
+
+async function ponsWindow(minH, maxH) {
+  const pageSize = 20;
+  const base = "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=newest&age=24h&graduatedPage=1&graduatedPageSize=1&includeGraduated=0&version=all&v=22&fresh=1&pageSize=" + pageSize;
+  const probe = await getJSON(base + "&page=1");
+  const total = Number(probe.active?.total) || 0;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  let page = Math.max(1, Math.min(pages, Math.round((minH / 24) * pages) - 1));
+  const picked = [];
+  for (let hop = 0; hop < 8; hop++) {
+    const data = await getJSON(base + "&page=" + page);
+    const items = data.active?.items || [];
+    if (!items.length) break;
+    const ages = items.map((x) => (Date.now() - new Date(x.launchedAt).getTime()) / 36e5);
+    items.forEach((x) => {
+      const age = (Date.now() - new Date(x.launchedAt).getTime()) / 36e5;
+      if (age >= minH && age <= maxH) picked.push(x);
+    });
+    const oldest = Math.max(...ages);
+    const newest = Math.min(...ages);
+    if (oldest < minH) page = Math.min(pages, page + 3);
+    else if (newest > maxH) page = Math.max(1, page - 3);
+    else break;
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const x of picked) {
+    if (seen.has(x.token)) continue;
+    seen.add(x.token);
+    unique.push(x);
+  }
+  const rows = [];
+  for (const x of unique.slice(0, 12)) {
+    let market = null;
+    try { market = await getJSON("https://www.ponsfamily.com/api/pons-market/" + x.token); } catch (e) { market = null; }
+    const row = fromPons(x, market);
+    if (row) rows.push(row);
+  }
+  return rows;
 }
 
 async function pairsFor(chain, addresses) {
@@ -228,17 +304,15 @@ async function scan() {
   if ($("chain").value !== "solana" && found.robinhood.length) {
     try { rows.push(...await pairsFor("robinhood", found.robinhood)); } catch (e) { errors.push("rh:" + e.message); }
   }
-  if (!found.robinhood.length && $("chain").value !== "solana") {
-    try {
-      const search = await getJSON("https://api.dexscreener.com/latest/dex/search?q=ETH");
-      (search.pairs || []).filter((p) => p.chainId === "robinhood").forEach((p) => { const row = fromPair(p); if (row) rows.push(row); });
-    } catch (e) { errors.push("cari-rh:" + e.message); }
+  if ($("chain").value !== "solana") {
+    try { rows.push(...await ponsWindow(Number($("ageMin").value) || 5, Number($("ageMax").value) || 6.5)); }
+    catch (e) { errors.push("pons:" + e.message); }
   }
   const seen = new Set();
   STATE.rows = rows.filter((r) => seen.has(r.chain + r.mint) ? false : seen.add(r.chain + r.mint));
   STATE.rows.sort((a, b) => a.ageH - b.ageH);
   STATE.error = errors.join(", ");
-  STATE.source = STATE.rows.length ? "live DexScreener" : "tidak ada data";
+  STATE.source = STATE.rows.some((r) => r.source === "pons") ? "Pons launchpad" : (STATE.rows.length ? "live DexScreener" : "tidak ada data");
   STATE.selected = null;
   $("scanBtn").disabled = false;
   render();
@@ -306,8 +380,8 @@ function renderTicket() {
     <label>Slippage maks (%)</label><input id="slip" type="number" min="1" max="30" step="0.5" value="8" />
     <button class="primary" id="arm" ${armed ? "" : "disabled"}>${armed ? "Salin & buka FOMO" : "Belum lolos filter"}</button>
     <button class="ghost" id="copy">Salin kontrak</button>
-    <button class="warn" id="chart">Buka chart</button>
-    <div class="warnbox">${armed ? "Kontrak ini dari DexScreener. FOMO tidak menerima order dari halaman ini; kamu menempel dan menandatangani sendiri." : "Token ini live, tapi di luar umur, likuiditas, atau skor. Beli dikunci supaya tidak nyasar."}</div>`;
+    <button class="warn" id="chart">${r.source === "pons" ? "Buka di Pons" : "Buka chart"}</button>
+    <div class="warnbox">${armed ? (r.source === "pons" ? "Kontrak ini dari launchpad Pons. LP yang sudah lulus dikunci permanen; yang masih curve belum jadi pool. FOMO tetap kamu tanda tangani sendiri." : "Kontrak ini dari DexScreener. FOMO tidak menerima order dari halaman ini.") : "Di luar umur, likuiditas, atau skor. Beli dikunci."}</div>`;
   $("copy").onclick = () => navigator.clipboard.writeText(r.mint).then(() => log("Disalin " + r.symbol));
   $("chart").onclick = () => window.open(r.url, "_blank", "noopener");
   if (armed) $("arm").onclick = () => armBuy(r);
@@ -328,16 +402,26 @@ async function checkManual() {
   const chain = mint.startsWith("0x") ? "robinhood" : "solana";
   if (!validMint(chain, mint)) return log("Kontrak tidak valid");
   try {
+    if (chain === "robinhood") {
+      const market = await getJSON("https://www.ponsfamily.com/api/pons-market/" + mint);
+      const info = await getJSON("https://www.ponsfamily.com/api/pons-token/" + mint).catch(() => ({}));
+      const row = fromPons({ token: mint, symbol: info.symbol || "RH", name: info.name || "Pons", launchedAt: info.launchedAt || new Date().toISOString(), graduated: info.graduated, graduationProgressPct: info.graduationProgressPct, quoteAsset: { symbol: "ETH" }, pool: market.pool, initialBuyWei: info.initialBuyWei }, market);
+      if (!row) return log("Tidak ketemu di Pons");
+      STATE.rows = [row, ...STATE.rows.filter((r) => r.mint !== row.mint)];
+      STATE.selected = row;
+      STATE.source = "Pons launchpad";
+      render();
+      return log("Dicek " + row.symbol + " skor " + row.score);
+    }
     const data = await getJSON("https://api.dexscreener.com/tokens/v1/" + chain + "/" + mint);
     const rows = (Array.isArray(data) ? data : []).map(fromPair).filter(Boolean);
     if (!rows.length) return log("Tidak ketemu di DexScreener");
     rows.sort((a, b) => b.liq - a.liq);
-    const row = rows[0];
-    STATE.rows = [row, ...STATE.rows.filter((r) => r.mint !== row.mint)];
-    STATE.selected = row;
+    STATE.rows = [rows[0], ...STATE.rows.filter((r) => r.mint !== rows[0].mint)];
+    STATE.selected = rows[0];
     STATE.source = "cek manual";
     render();
-    log("Dicek " + row.symbol + " skor " + row.score);
+    log("Dicek " + rows[0].symbol + " skor " + rows[0].score);
   } catch (e) { log("Cek gagal: " + e.message); }
 }
 
