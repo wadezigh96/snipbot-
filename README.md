@@ -2,99 +2,95 @@
 
 Fully autonomous AI agent for BNB Chain meme coins.
 
-**Target platforms:** four.meme + Flap  
+**Target:** four.meme + Flap  
 **Mode:** Fully Autonomous  
 **Risk:** 3–5% wallet per trade  
-**Pairs:** BNB + USDT  
-**Anti-rug focus:** LP burn, holder/dev concentration (bubblemap), volume filter
+**Pairs:** BNB (+ USDT ready)  
+**Anti-rug:** LP burn → Holder/dev → Volume ($8k–$15k)
 
-Built for **BNB Chain Set and Earn** campaign (ERC-8004 agent identity).
+Built for **BNB Chain Set and Earn** (ERC-8004).
 
 ---
 
-## Quick Start
-
-### 1. Install
+## Install & Run
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+git clone https://github.com/wadezigh96/snipbot-
+cd snipbot-
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Configure
-
-```bash
 cp .env.example .env
-# edit .env — isi PRIVATE_KEY / WALLET_PASSWORD, RPC, dll
+# isi PRIVATE_KEY + NETWORK=bsc (atau bsc-testnet)
 ```
 
-### 3. Register Agent (ERC-8004)
+### 1. Register agent (ERC-8004)
 
 ```bash
 python -m agent.register
 ```
 
-Ini akan:
-- Generate agent card
-- Daftarkan identity di ERC-8004 (gasless via MegaFuel di BSC)
-- Simpan `agent_id` ke `agent_state.json`
+Gasless di BSC via MegaFuel. Simpan `agent_id` di `agent_state.json`.
 
-### 4. Run Agent
+### 2. Jalankan agent
 
 ```bash
 python -m agent.main
 ```
 
+Agent akan:
+1. Scan listing baru four.meme (API + TokenCreate event)
+2. Scan listing baru Flap (Portal TokenCreated)
+3. Filter anti-rug (LP, holder, volume)
+4. Auto-buy jika score ≥ 58 (respect 3–5% risk)
+5. Track open positions
+
 ---
 
-## Project Structure
+## Structure
 
 ```
 agent/
-  ├── __init__.py
-  ├── config.py          # settings & risk params
-  ├── register.py        # ERC-8004 registration
-  ├── main.py            # entry point (fully autonomous loop)
-  ├── scanner/
-  │   ├── fourmeme.py    # four.meme new listings
-  │   └── flap.py        # Flap new listings
-  ├── filters/
-  │   └── antirug.py     # LP burn, holder, volume, etc.
-  ├── portfolio/
-  │   └── manager.py     # position sizing, TP/SL, exposure
-  ├── execution/
-  │   └── trader.py      # buy/sell on curve + PCS
-  └── utils/
-      └── logger.py
+  contracts.py          # addresses + ABIs
+  register.py           # ERC-8004
+  main.py               # autonomous loop
+  scanner/
+    fourmeme.py         # API + on-chain
+    flap.py             # Portal events
+  filters/
+    antirug.py          # LP → holder → volume
+  portfolio/
+    manager.py          # sizing + exposure
+  execution/
+    trader.py           # buyTokenAMAP + swapExactInput
 ```
 
 ---
 
-## Risk Parameters (default)
+## Risk defaults
 
 | Param | Value |
 |-------|-------|
-| Max per trade | 3–5% of wallet |
-| Min volume | $8k – $10k |
-| Max volume (early) | ~$15k |
-| Priority filter | LP burn → Holder/dev bubblemap → Volume |
-| Supported | BNB + USDT |
+| Max per trade | 4% (atur di .env 0.03–0.05) |
+| Max total exposure | 25% |
+| Min volume | $8,000 |
+| Max volume | $15,000 |
+| Slippage | 3% |
 
 ---
 
-## Set and Earn Checklist
+## Set and Earn checklist
 
-- [x] Public repo
-- [ ] Register wallet di campaign page
-- [ ] Register agent via ERC-8004 (mainnet atau testnet)
-- [ ] List agent di salah satu marketplace shortlist
-- [ ] Dapat minimal 3 hire dari wallet independen
-- [ ] Minimal 5 on-chain actions di 3 hari berbeda
+- [x] Public repo  
+- [x] ERC-8004 registration script  
+- [x] Real scanner four.meme + Flap  
+- [x] Real trader (curve buy/sell)  
+- [x] Anti-rug filter  
+- [ ] List agent di marketplace shortlist  
+- [ ] Minimal 3 hire + 5 on-chain actions di 3 hari  
 
 ---
 
 ## Disclaimer
 
-Trading meme coin sangat berisiko. Gunakan hanya dana yang siap hilang.  
-Agent ini tidak menjamin profit. Anti-rug filter adalah heuristik, bukan audit.
+Meme trading = high risk. Hanya pakai dana yang siap hilang.  
+Filter anti-rug adalah heuristik, **bukan** audit keamanan.
