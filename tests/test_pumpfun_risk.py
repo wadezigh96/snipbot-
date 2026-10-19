@@ -55,6 +55,21 @@ class RiskPolicyTests(unittest.TestCase):
     def test_rejects_failed_simulation(self):
         self.assertEqual(self.check(simulation_passed=False).reason, "transaction_simulation_not_passed")
 
+    def test_rejects_malformed_freshness_gate(self):
+        for value in ("true", 1, None):
+            with self.subTest(value=value):
+                self.assertEqual(self.check(data_is_fresh=value).reason, "invalid_boolean_gate")
+
+    def test_rejects_malformed_quote_gate(self):
+        for value in ("yes", 1, None):
+            with self.subTest(value=value):
+                self.assertEqual(self.check(quote_is_valid=value).reason, "invalid_boolean_gate")
+
+    def test_rejects_malformed_simulation_gate(self):
+        for value in ("passed", 1, None):
+            with self.subTest(value=value):
+                self.assertEqual(self.check(simulation_passed=value).reason, "invalid_boolean_gate")
+
     def test_rejects_when_sol_reserve_would_be_breached(self):
         self.assertEqual(
             self.check(available_sol_usd=2.0, estimated_network_fee_usd=0.1).reason,
