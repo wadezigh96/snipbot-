@@ -1,14 +1,14 @@
 import base64
 import unittest
 
-from agent.pumpfun.rpc import TOKEN_PROGRAM, parse_mint_account
+from agent.pumpfun.rpc import TOKEN_2022_PROGRAM, TOKEN_PROGRAM, parse_mint_account
 
 
 MINT = "So11111111111111111111111111111111111111112"
 
 
-def mint_bytes(*, mint_authority=0, freeze_authority=0, initialized=1, decimals=6):
-    data = bytearray(82)
+def mint_bytes(*, mint_authority=0, freeze_authority=0, initialized=1, decimals=6, size=82):
+    data = bytearray(size)
     data[0:4] = int(mint_authority).to_bytes(4, "little")
     data[44] = decimals
     data[45] = initialized
@@ -34,6 +34,21 @@ class SolanaMintCheckTests(unittest.TestCase):
         self.assertEqual(check.status, "VERIFIED")
         self.assertTrue(check.mint_authority_present)
         self.assertTrue(check.freeze_authority_present)
+
+    def test_token_2022_base_layout_without_extensions_can_be_parsed(self):
+        check = parse_mint_account(
+            MINT, self.account(mint_bytes(), owner=TOKEN_2022_PROGRAM)
+        )
+        self.assertEqual(check.status, "VERIFIED")
+
+    def test_token_2022_extensions_remain_unknown_until_parsed(self):
+        check = parse_mint_account(
+            MINT, self.account(mint_bytes(size=90), owner=TOKEN_2022_PROGRAM)
+        )
+        self.assertEqual(check.status, "UNKNOWN")
+        self.assertEqual(check.reason, "token_2022_extensions_not_parsed")
+        self.assertIsNone(check.mint_authority_present)
+        self.assertIsNone(check.freeze_authority_present)
 
     def test_rejects_uninitialized_mint(self):
         check = parse_mint_account(MINT, self.account(mint_bytes(initialized=0)))
