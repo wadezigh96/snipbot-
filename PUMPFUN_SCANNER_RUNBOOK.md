@@ -16,10 +16,12 @@ python -m unittest discover -s tests -p "test_pumpfun_*.py" -v
 PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.scanner
 ```
 
+To run scanner plus optional LLM advisory and read-only mint-account checks, configure `SOLANA_RPC_URL` with an HTTPS Solana RPC endpoint. If it is absent or fails, the mint check is recorded as UNKNOWN and no buy is permitted. This checks the SPL mint layout and mint/freeze authority flags only; it does not verify holder concentration, liquidity, creator history, bonding-curve/PumpSwap state, or sellability.
+
 To run scanner plus optional LLM advisory:
 
 ```bash
-PUMPFUN_SCAN_SECONDS=60 PUMPFUN_DB_PATH=data/pumpfun_monitor.sqlite3 python -m agent.pumpfun.run_agent
+PUMPFUN_SCAN_SECONDS=60 PUMPFUN_DB_PATH=data/pumpfun_monitor.sqlite3 SOLANA_RPC_URL=https://your-rpc-endpoint.example python -m agent.pumpfun.run_agent
 ```
 
 Without LLM_API_KEY (or OPENAI_API_KEY) and LLM_MODEL (or OPENAI_MODEL), the runner operates in WATCH_ONLY mode and does not make an LLM request. Configure an HTTPS OpenAI-compatible endpoint with LLM_BASE_URL if needed. API usage may incur separate charges; a ChatGPT subscription does not automatically include API credits. Keep all keys in local environment variables or a secret store—never commit them.
@@ -31,7 +33,7 @@ Each new event is printed as one JSON object per line and persisted in a SQLite 
 
 ## Required next steps
 - Add bounded reconnect with backoff, provider-health state, and event-time freshness checks.
-- Cross-check mint and curve/pool state through a reliable Solana RPC/indexer.
+- Cross-check mint and curve/pool state through a reliable Solana RPC/indexer; the current mint parser is only one partial check.
 - Add liquidity, holder concentration, mint/freeze authority and creator history from verifiable sources.
 - Add a persisted paper-trading ledger and exit simulation.
 - Only later, separately review quote construction, fees, minimum output, exact transaction simulation, signer isolation, and explicit live activation.
