@@ -1,11 +1,13 @@
 """Fail-closed pre-trade limits for PumpFun FOMO Radar.
 
-This module does not sign, build, or broadcast transactions. Amounts are USD
+This module does not sign, build, or broadcast transactions. Dollar amounts are
 estimates supplied by a caller and must be backed by fresh market/RPC data.
+Persistent accounting and transaction reconciliation are required before live use.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,7 @@ class RiskPolicy:
         *,
         position_usd: float,
         open_positions: int,
+        open_exposure_usd: float,
         daily_realized_loss_usd: float,
         available_sol_usd: float,
         estimated_network_fee_usd: float,
@@ -34,25 +37,30 @@ class RiskPolicy:
         quote_is_valid: bool,
         simulation_passed: bool,
     ) -> RiskDecision:
-        """Return a decision; unknown/invalid values are rejected by default."""
+        """Return a decision; unknown, malformed, or unsafe values fail closed."""
         numbers = (
             position_usd,
+            open_exposure_usd,
             daily_realized_loss_usd,
             available_sol_usd,
             estimated_network_fee_usd,
         )
-        if any(not isinstance(v, (int, float)) for v in numbers):
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in numbers):
             return RiskDecision(False, "invalid_numeric_input")
-        if any(v != v or abs(v) == float("inf") for v in numbers):
+        if any(not math.isfinite(v) for v in numbers):
             return RiskDecision(False, "non_finite_numeric_input")
-        if not isinstance(open_positions, int) or open_positions < 0:
+        if isinstance(open_positions, bool) or not isinstance(open_positions, int) or open_positions < 0:
             return RiskDecision(False, "invalid_open_position_count")
+        if open_exposure_usd < 0:
+            return RiskDecision(False, "invalid_open_exposure")
         if position_usd <= 0:
             return RiskDecision(False, "position_must_be_positive")
         if position_usd > self.max_position_usd:
             return RiskDecision(False, "position_limit_exceeded")
         if open_positions >= self.max_open_positions:
             return RiskDecision(False, "open_position_limit_reached")
+        if open_exposure_usd + position_usd > self.bankroll_usd:
+            return RiskDecision(False, "total_exposure_limit_exceeded")
         if daily_realized_loss_usd < 0:
             return RiskDecision(False, "loss_input_must_be_nonnegative")
         if daily_realized_loss_usd >= self.daily_loss_limit_usd:
