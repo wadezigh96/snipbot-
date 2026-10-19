@@ -1,6 +1,10 @@
+import asyncio
+import sys
+import types
 import unittest
+from unittest.mock import patch
 
-from agent.pumpfun.scanner import build_data_ws_url, normalize_event, score_event
+from agent.pumpfun.scanner import build_data_ws_url, normalize_event, score_event, stream_events
 
 
 MINT = "So11111111111111111111111111111111111111112"
@@ -83,6 +87,57 @@ class PumpFunScannerTests(unittest.TestCase):
         )
         self.assertEqual(score, 0)
         self.assertTrue(any("not_a_trade_signal" in reason for reason in reasons))
+
+
+    def test_websocket_close_reports_health_and_raises_for_reconnect(self):
+        class FakeWebSocket:
+            def __init__(self):
+                self.sent = []
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return None
+
+            async def send_json(self, value):
+                self.sent.append(value)
+
+            async def receive(self):
+                return types.SimpleNamespace(type="CLOSED")
+
+        class FakeSession:
+            def __init__(self, **kwargs):
+                self.websocket = FakeWebSocket()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return None
+
+            def ws_connect(self, *args, **kwargs):
+                return self.websocket
+
+        fake_aiohttp = types.SimpleNamespace(
+            ClientTimeout=lambda **kwargs: object(),
+            ClientSession=FakeSession,
+            WSMsgType=types.SimpleNamespace(TEXT="TEXT", CLOSED="CLOSED", CLOSE="CLOSE", ERROR="ERROR"),
+        )
+        statuses = []
+
+        async def run():
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                async for _event in stream_events(
+                    seconds=1,
+                    websocket_url="wss://example.invalid/data",
+                    on_status=statuses.append,
+                ):
+                    pass
+
+        with self.assertRaisesRegex(RuntimeError, "pumpportal_websocket_closed"):
+            asyncio.run(run())
+        self.assertEqual(statuses, ["connected", "disconnected"])
 
 
 if __name__ == "__main__":
