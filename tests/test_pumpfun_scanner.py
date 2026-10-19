@@ -1,6 +1,6 @@
 import unittest
 
-from agent.pumpfun.scanner import normalize_event, score_event
+from agent.pumpfun.scanner import build_data_ws_url, normalize_event, score_event
 
 
 MINT = "So11111111111111111111111111111111111111112"
@@ -8,6 +8,15 @@ TRADER = "11111111111111111111111111111111"
 
 
 class PumpFunScannerTests(unittest.TestCase):
+    def test_builds_encoded_websocket_url(self):
+        url = build_data_ws_url("example-secret/key")
+        self.assertTrue(url.startswith("wss://pumpportal.fun/api/data?"))
+        self.assertIn("api-key=example-secret%2Fkey", url)
+
+    def test_missing_api_key_fails_closed(self):
+        with self.assertRaisesRegex(RuntimeError, "PUMPPORTAL_API_KEY"):
+            build_data_ws_url("")
+
     def test_normalizes_valid_new_token_event_as_watch_only(self):
         event = normalize_event({
             "txType": "create",
