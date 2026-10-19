@@ -38,6 +38,13 @@ class PumpFunScannerTests(unittest.TestCase):
         self.assertGreater(event.score, 0)
         self.assertIn("not_a_trade_signal_missing_liquidity_holder_and_authority_checks", event.reasons)
 
+    def test_rejects_malformed_observation_timestamps(self):
+        for timestamp in (True, False, "123", float("nan"), float("inf"), float("-inf"), -1, None):
+            if timestamp is None:
+                continue
+            with self.subTest(timestamp=timestamp):
+                self.assertIsNone(normalize_event({"txType": "create", "mint": MINT}, observed_at=timestamp))
+
     def test_normalizes_migration_event(self):
         event = normalize_event({"txType": "migration", "mint": MINT}, observed_at=5)
         self.assertIsNotNone(event)
