@@ -55,6 +55,11 @@ class SolanaMintCheckTests(unittest.TestCase):
         self.assertEqual(check.status, "REJECT")
         self.assertEqual(check.reason, "mint_not_initialized")
 
+    def test_rejects_malformed_owner_without_crashing(self):
+        check = parse_mint_account(MINT, self.account(mint_bytes(), owner=[]))
+        self.assertEqual(check.status, "UNKNOWN")
+        self.assertEqual(check.reason, "mint_account_owner_invalid")
+
     def test_rejects_unsupported_owner(self):
         check = parse_mint_account(
             MINT, self.account(mint_bytes(), owner="11111111111111111111111111111111")
