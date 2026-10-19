@@ -11,6 +11,7 @@ class RiskPolicyTests(unittest.TestCase):
         args = dict(
             position_usd=1.0,
             open_positions=0,
+            open_exposure_usd=0.0,
             daily_realized_loss_usd=0.0,
             available_sol_usd=10.0,
             estimated_network_fee_usd=0.05,
@@ -29,6 +30,18 @@ class RiskPolicyTests(unittest.TestCase):
 
     def test_rejects_when_two_positions_are_open(self):
         self.assertEqual(self.check(open_positions=2).reason, "open_position_limit_reached")
+
+    def test_rejects_boolean_position_count(self):
+        self.assertEqual(self.check(open_positions=True).reason, "invalid_open_position_count")
+
+    def test_rejects_exposure_above_bankroll(self):
+        self.assertEqual(
+            self.check(open_exposure_usd=9.5, position_usd=1.0).reason,
+            "total_exposure_limit_exceeded",
+        )
+
+    def test_rejects_negative_open_exposure(self):
+        self.assertEqual(self.check(open_exposure_usd=-0.1).reason, "invalid_open_exposure")
 
     def test_rejects_daily_loss_cap(self):
         self.assertEqual(self.check(daily_realized_loss_usd=1.0).reason, "daily_loss_limit_reached")
@@ -50,6 +63,9 @@ class RiskPolicyTests(unittest.TestCase):
 
     def test_rejects_nan(self):
         self.assertEqual(self.check(position_usd=float("nan")).reason, "non_finite_numeric_input")
+
+    def test_rejects_boolean_numeric_input(self):
+        self.assertEqual(self.check(position_usd=True).reason, "invalid_numeric_input")
 
 
 if __name__ == "__main__":
