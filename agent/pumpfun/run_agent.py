@@ -51,8 +51,9 @@ async def main() -> None:
     outage = False
 
     async def status_callback(status: str) -> None:
-        nonlocal outage
+        nonlocal outage, consecutive_failures
         if status == "connected":
+            consecutive_failures = 0
             _health("connected")
             if outage:
                 result = await send_telegram_message(
