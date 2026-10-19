@@ -8,6 +8,7 @@ on:
       - "Dockerfile.pumpfun"
       - "requirements-pumpfun.txt"
       - "PUMPFUN_SCANNER_RUNBOOK.md"
+      - "deploy/termux/**"
       - ".env.example"
       - ".github/workflows/pumpfun-risk-tests.yml"
   push:
@@ -29,5 +30,7 @@ jobs:
           python-version: "3.12"
       - name: Run PumpFun tests
         run: python -m unittest discover -s tests -p "test_pumpfun_*.py" -v
+      - name: Check Termux launcher syntax
+        run: bash -n deploy/termux/pumpfun-worker.sh
       - name: Build isolated read-only worker image
         run: docker build -f Dockerfile.pumpfun -t pumpfun-readonly-worker:test .
