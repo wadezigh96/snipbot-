@@ -1,48 +1,75 @@
-# PumpFun FOMO Radar — read-only scanner and LLM monitor runbook
+# PumpFun FOMO Radar — read-only monitor and worker runbook
 
-## What this stage does
-The scanner connects to PumpPortal's third-party data WebSocket, subscribes to new-token and migration events, normalizes basic fields, deduplicates each mint/event type during the run, and emits JSON Lines. The monitor runner can optionally send normalized event fields to a configured OpenAI-compatible LLM endpoint for cautious triage.
+## Safety boundary
 
-It is read-only: it never requests a wallet, signs a transaction, submits a transaction, or calls a buy/sell endpoint. LLM decisions are limited to WATCH or REJECT. Missing configuration, malformed responses, unsupported actions, and request failures all fall back to WATCH_ONLY. No model response can authorize a trade.
+This service observes PumpPortal's third-party WebSocket, performs a partial read-only Solana mint-account check, stores observations in SQLite, and optionally sends Telegram notifications and an LLM advisory. It does not create/import wallets, sign transactions, quote trades, submit transactions, or call buy/sell endpoints. Every event alert says **WATCH ONLY** and **Execution: DISABLED**.
 
-PumpPortal is a third-party provider, not the Pump.fun protocol itself. Check its current terms, reliability, API limits, and fee policies before depending on it. Event scores and LLM opinions do not establish liquidity, holder concentration, token authorities, creator history, or rug-pull safety.
+The scanner score is a triage heuristic, not a buy signal. A `VERIFIED` mint status only means the supported base mint layout was parsed; it does not prove that a token is safe, liquid, sellable, or free from concentrated/insider ownership. Unsupported or unknown data must remain UNKNOWN.
 
-## Configure PumpPortal safely
-The scanner reads `PUMPPORTAL_API_KEY` from the runtime environment and builds the WebSocket URL in memory. Never put a real key in `.env.example`, source code, command-line arguments, GitHub files, or logs. If PumpPortal issued the API key alongside a wallet/private key, treat it as trading-capable: do not add it to Vercel or any hosted environment for this read-only scanner. Prefer a dedicated data-only credential if the provider offers one. The current scanner only subscribes to the free `subscribeNewToken` and `subscribeMigration` streams; do not add paid trade/account subscriptions.
+## Audit findings addressed in this branch
 
-On Termux, set the key in the current shell without sharing its value:
-```bash
-read -rsp "PumpPortal API key: " PUMPPORTAL_API_KEY; export PUMPPORTAL_API_KEY; echo
-```
-This keeps the value out of shell history. Do not run `env`, `printenv`, or commands that dump the variable. Close the shell when finished to clear this session variable.
+- WebSocket close/error now raises a generic reconnect signal instead of silently ending a monitor session.
+- Monitor health is emitted as JSON lines (connected, disconnected, reconnecting, and notification result).
+- Reconnect uses capped exponential backoff (2, 4, 8... up to 60 seconds); provider exception text and credential-bearing URLs are never printed.
+- Telegram is optional and best-effort. Missing or failed Telegram configuration does not stop scanning.
+- A new mint/event pair is alerted only when SQLite reports it as new; duplicate observations update persistence without sending repeat token alerts.
+- The worker container uses a minimal PumpFun-specific requirements file and runs as an unprivileged user.
+- Runtime remains read-only; there is no execution switch in this worker.
 
-## Run locally
-Install requirements from the repository root:
+## Required runtime environment variables
+
+Set these in the hosting provider's private environment/secret settings, never in GitHub source files:
+
+- `PUMPPORTAL_API_KEY`: required data-stream credential. Prefer a dedicated data-only key. If the provider issued it with wallet/private-key capability, do not use it on hosted infrastructure.
+- `SOLANA_RPC_URL`: optional HTTPS RPC endpoint. If missing/unavailable, mint checks remain UNKNOWN.
+- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`: optional; configure both to enable alerts.
+- `PUMPFUN_RUN_FOREVER=true`: required for the persistent worker container.
+- `PUMPFUN_SCAN_SECONDS=3600`: each WebSocket session window; sessions rotate after this bound.
+- `PUMPFUN_DB_PATH=/app/data/pumpfun_monitor.sqlite3`: database location. Attach persistent storage at `/app/data` on the host.
+- Optional LLM: `LLM_API_KEY` (or `OPENAI_API_KEY`) and `LLM_MODEL` (or `OPENAI_MODEL`). LLM calls may cost money and are not required for monitoring.
+
+Do not put secrets in Docker build arguments, image layers, command-line arguments, repository files, logs, or screenshots. Do not run `env`/`printenv` when secret variables are exported.
+
+## Telegram setup
+
+1. Create a Telegram bot with the official `@BotFather` account and copy its token directly into the hosting provider's secret settings.
+2. Open the bot's private chat and press Start (or send `/start`).
+3. Determine the destination chat ID using your own trusted Telegram tooling; do not paste the bot token or private API response into this chat.
+4. Add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` to the worker environment and restart it.
+5. Verify delivery using a newly observed event or a controlled staging test. The process reports only `sent`, `failed`, or `disabled`; it does not print the token or Telegram response body.
+
+Telegram delivery is best-effort, not guaranteed. Provider/network failures are recorded as status output and do not stop the scanner.
+
+## Hosting: persistent worker, not a serverless web function
+
+Use an always-on background worker/container service that supports outbound WebSocket connections and persistent disk. This repository includes `Dockerfile.pumpfun` and `requirements-pumpfun.txt`. In the host's service settings, select the custom Dockerfile path `Dockerfile.pumpfun`, configure the environment variables above, and mount persistent disk at `/app/data`.
+
+Do not deploy this worker as a Vercel serverless function or scheduled HTTP endpoint: it needs a long-lived outbound WebSocket and a writable persistent database. The Dockerfile is separate from the repository's ordinary web app build. No hosting provider has been deployed or verified by this code change; hosting credentials and the persistent volume must be configured by the owner.
+
+## Local run and tests
+
+From the repository root:
 
 ```bash
 pip install -r requirements.txt
 python -m unittest discover -s tests -p "test_pumpfun_*.py" -v
-PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.scanner
 ```
 
-To run scanner plus optional LLM advisory and read-only mint-account checks, configure `SOLANA_RPC_URL` with an HTTPS Solana RPC endpoint. If it is absent or fails, the mint check is recorded as UNKNOWN and no buy is permitted. This checks the SPL mint layout and mint/freeze authority flags only; it does not verify holder concentration, liquidity, creator history, bonding-curve/PumpSwap state, or sellability.
-
-To run scanner plus optional LLM advisory:
+For a bounded local monitor session (60 seconds by default):
 
 ```bash
-PUMPFUN_SCAN_SECONDS=60 PUMPFUN_DB_PATH=data/pumpfun_monitor.sqlite3 SOLANA_RPC_URL=https://your-rpc-endpoint.example python -m agent.pumpfun.run_agent
+PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.run_agent
 ```
 
-Without LLM_API_KEY (or OPENAI_API_KEY) and LLM_MODEL (or OPENAI_MODEL), the runner operates in WATCH_ONLY mode and does not make an LLM request. Configure an HTTPS OpenAI-compatible endpoint with LLM_BASE_URL if needed. API usage may incur separate charges; a ChatGPT subscription does not automatically include API credits. Keep all keys in local environment variables or a secret store—never commit them.
+For a persistent worker, set `PUMPFUN_RUN_FOREVER=true` and `PUMPFUN_SCAN_SECONDS=3600`. Ensure the required `PUMPPORTAL_API_KEY` is set in the current environment. Never print the environment or expose the secret in shell history. Use `PUMPFUN_DB_PATH` to select a local database path.
 
-The scan window defaults to 60 seconds and can be set from 1 to 3600 seconds with PUMPFUN_SCAN_SECONDS. Stop with Ctrl+C.
+## Operational limits
 
-## Output and limitations
-Each new event is printed as one JSON object per line and persisted in a SQLite database. The store deduplicates mint/event pairs across restarts; repeated observations update the stored count and latest normalized fields. No event does not prove the market is inactive: the provider may be disconnected, delayed, or filtering events. The current implementation has no reconnect/backfill guarantee and no on-chain verification. SQLite persistence is local to the configured path; it does not provide a shared database or hosted always-on runtime. Treat all fields as untrusted. The same mint may legitimately have one creation event and one migration event.
-
-## Required next steps
-- Add bounded reconnect with backoff, provider-health state, and event-time freshness checks.
-- Cross-check mint and curve/pool state through a reliable Solana RPC/indexer; the current mint parser is only one partial check.
-- Add liquidity, holder concentration, mint/freeze authority and creator history from verifiable sources.
-- Add a persisted paper-trading ledger and exit simulation.
-- Only later, separately review quote construction, fees, minimum output, exact transaction simulation, signer isolation, and explicit live activation.
+- Reconnect cannot recover events missed while disconnected; no provider backfill is implemented.
+- Backoff is capped at 60 seconds; bad credentials/provider outages can continue retrying and should be monitored.
+- Telegram notifications are best-effort and duplicate-suppressed by the local SQLite database.
+- SQLite persistence survives container replacement only if the host mounts persistent disk at `/app/data`.
+- One monitor instance should use one database file on a supported persistent disk; do not share a SQLite file across multiple hosts.
+- Current mint checks do not cover holder concentration, liquidity, creator history, bonding-curve/PumpSwap state, sellability, or all Token-2022 extensions.
+- LLM advisory is optional and cannot authorize transactions.
+- **Live trading is not implemented or enabled.** Paper trading, quote validation, transaction simulation, persistent risk accounting, and any future signer/execution integration require separate design, tests, and explicit authorization.
