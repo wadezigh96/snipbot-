@@ -41,7 +41,9 @@ class SolanaMintCheckTests(unittest.TestCase):
         self.assertEqual(check.reason, "mint_not_initialized")
 
     def test_rejects_unsupported_owner(self):
-        check = parse_mint_account(MINT, self.account(mint_bytes(), owner="11111111111111111111111111111111"))
+        check = parse_mint_account(
+            MINT, self.account(mint_bytes(), owner="11111111111111111111111111111111")
+        )
         self.assertEqual(check.status, "REJECT")
 
     def test_rejects_short_data(self):
@@ -50,6 +52,20 @@ class SolanaMintCheckTests(unittest.TestCase):
 
     def test_rejects_invalid_address(self):
         self.assertEqual(parse_mint_account("bad", {}).status, "UNKNOWN")
+
+    def test_missing_mint_account_remains_unknown(self):
+        check = parse_mint_account(MINT, None)
+        self.assertEqual(check.status, "UNKNOWN")
+        self.assertEqual(check.reason, "mint_account_missing")
+        self.assertIsNone(check.mint_authority_present)
+        self.assertIsNone(check.freeze_authority_present)
+
+    def test_rejects_invalid_authority_option_flags(self):
+        data = bytearray(mint_bytes())
+        data[0:4] = (2).to_bytes(4, "little")
+        check = parse_mint_account(MINT, self.account(bytes(data)))
+        self.assertEqual(check.status, "REJECT")
+        self.assertEqual(check.reason, "mint_authority_option_invalid")
 
 
 if __name__ == "__main__":
