@@ -5,6 +5,10 @@ on:
     paths:
       - "agent/pumpfun/**"
       - "tests/test_pumpfun_*.py"
+      - "Dockerfile.pumpfun"
+      - "requirements-pumpfun.txt"
+      - "PUMPFUN_SCANNER_RUNBOOK.md"
+      - ".env.example"
       - ".github/workflows/pumpfun-risk-tests.yml"
   push:
     branches:
