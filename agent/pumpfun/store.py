@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sqlite3
 import time
@@ -42,13 +43,22 @@ class ObservationStore:
         observed_at: float | None = None,
     ) -> bool:
         """Store/update an event; return True only the first time this pair appears."""
+        if not isinstance(event, dict):
+            raise ValueError("event must be an object")
+        if not isinstance(advisor, dict):
+            raise ValueError("advisor must be an object")
         mint = event.get("mint")
         event_type = event.get("event_type")
         if not isinstance(mint, str) or not mint or not isinstance(event_type, str) or not event_type:
             raise ValueError("event must contain non-empty mint and event_type")
-        now = float(observed_at if observed_at is not None else time.time())
-        if now < 0:
-            raise ValueError("observed_at must be non-negative")
+        if observed_at is None:
+            now = time.time()
+        else:
+            if isinstance(observed_at, bool) or not isinstance(observed_at, (int, float)):
+                raise ValueError("observed_at must be a finite non-negative number")
+            now = float(observed_at)
+        if not math.isfinite(now) or now < 0:
+            raise ValueError("observed_at must be a finite non-negative number")
         event_json = json.dumps(event, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
         advisor_json = json.dumps(advisor, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
         cursor = self._db.execute(
@@ -58,7 +68,7 @@ class ObservationStore:
                 observations_count, event_json, advisor_json
             ) VALUES (?, ?, ?, ?, 1, ?, ?)
             ON CONFLICT(mint, event_type) DO UPDATE SET
-                last_seen_at = excluded.last_seen_at,
+                last_seen_at = MAX(observations.last_seen_at, excluded.last_seen_at),
                 observations_count = observations.observations_count + 1,
                 event_json = excluded.event_json,
                 advisor_json = excluded.advisor_json
