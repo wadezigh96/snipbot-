@@ -1,6 +1,6 @@
 import unittest
 
-from agent.pumpfun.run_agent import backoff_seconds
+from agent.pumpfun.run_agent import backoff_seconds, validate_telegram_config
 
 
 class MonitorBackoffTests(unittest.TestCase):
@@ -21,6 +21,22 @@ class MonitorBackoffTests(unittest.TestCase):
             backoff_seconds(1, base=0)
         with self.assertRaises(ValueError):
             backoff_seconds(1, maximum=0)
+
+    def test_telegram_config_allows_both_empty(self):
+        validate_telegram_config({})
+
+    def test_telegram_config_allows_both_present(self):
+        validate_telegram_config({"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"})
+
+    def test_telegram_config_rejects_partial_secret_pair(self):
+        for values in (
+            {"TELEGRAM_BOT_TOKEN": "token"},
+            {"TELEGRAM_CHAT_ID": "123"},
+            {"TELEGRAM_BOT_TOKEN": "  ", "TELEGRAM_CHAT_ID": "123"},
+        ):
+            with self.subTest(values=values):
+                with self.assertRaises(ValueError):
+                    validate_telegram_config(values)
 
 
 if __name__ == "__main__":
