@@ -34,6 +34,8 @@ def parse_mint_account(mint: str, account: Any) -> MintCheck:
     if not isinstance(account, dict):
         return MintCheck("UNKNOWN", mint, "mint_account_missing")
     owner = account.get("owner")
+    if not isinstance(owner, str):
+        return MintCheck("UNKNOWN", mint, "mint_account_owner_invalid")
     if owner not in {TOKEN_PROGRAM, TOKEN_2022_PROGRAM}:
         return MintCheck("REJECT", mint, "account_owner_not_supported_token_program")
     data_field = account.get("data")
