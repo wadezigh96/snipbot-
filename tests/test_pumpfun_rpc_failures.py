@@ -93,8 +93,23 @@ class VerifyMintRpcFailureTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.reason, "solana_rpc_request_failed")
         self.assertNotIn("private endpoint detail", result.reason)
 
+    async def test_malformed_response_envelope_returns_unknown(self):
+        malformed_bodies = (
+            {"jsonrpc": "1.0", "id": 1, "result": {"value": None}},
+            {"jsonrpc": "2.0", "id": 2, "result": {"value": None}},
+            {"jsonrpc": "2.0", "id": 1, "result": []},
+            {"jsonrpc": "2.0", "id": 1},
+        )
+        for body in malformed_bodies:
+            with self.subTest(body=body):
+                fake = FakeAiohttp(response=FakeResponse(body=body))
+                with patch.dict(sys.modules, {"aiohttp": fake}):
+                    result = await verify_mint(MINT, rpc_url="https://rpc.example")
+                self.assertEqual(result.status, "UNKNOWN")
+                self.assertEqual(result.reason, "solana_rpc_response_envelope_invalid")
+
     async def test_null_account_value_returns_unknown(self):
-        fake = FakeAiohttp(response=FakeResponse(body={"jsonrpc": "2.0", "result": {"value": None}}))
+        fake = FakeAiohttp(response=FakeResponse(body={"jsonrpc": "2.0", "id": 1, "result": {"value": None}}))
         with patch.dict(sys.modules, {"aiohttp": fake}):
             result = await verify_mint(MINT, rpc_url="https://rpc.example")
         self.assertEqual(result.status, "UNKNOWN")
