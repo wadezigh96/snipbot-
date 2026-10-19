@@ -1,10 +1,10 @@
-name: PumpFun risk gate tests
+name: PumpFun scanner and risk tests
 
 on:
   pull_request:
     paths:
       - "agent/pumpfun/**"
-      - "tests/test_pumpfun_risk.py"
+      - "tests/test_pumpfun_*.py"
       - ".github/workflows/pumpfun-risk-tests.yml"
   push:
     branches:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  risk-gate:
+  pumpfun-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,5 +23,5 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run dependency-free risk gate tests
-        run: python -m unittest discover -s tests -p "test_pumpfun_risk.py" -v
+      - name: Run dependency-free PumpFun tests
+        run: python -m unittest discover -s tests -p "test_pumpfun_*.py" -v
