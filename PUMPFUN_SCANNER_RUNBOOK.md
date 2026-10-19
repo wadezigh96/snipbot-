@@ -19,7 +19,7 @@ PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.scanner
 To run scanner plus optional LLM advisory:
 
 ```bash
-PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.run_agent
+PUMPFUN_SCAN_SECONDS=60 PUMPFUN_DB_PATH=data/pumpfun_monitor.sqlite3 python -m agent.pumpfun.run_agent
 ```
 
 Without LLM_API_KEY (or OPENAI_API_KEY) and LLM_MODEL (or OPENAI_MODEL), the runner operates in WATCH_ONLY mode and does not make an LLM request. Configure an HTTPS OpenAI-compatible endpoint with LLM_BASE_URL if needed. API usage may incur separate charges; a ChatGPT subscription does not automatically include API credits. Keep all keys in local environment variables or a secret store—never commit them.
@@ -27,7 +27,7 @@ Without LLM_API_KEY (or OPENAI_API_KEY) and LLM_MODEL (or OPENAI_MODEL), the run
 The scan window defaults to 60 seconds and can be set from 1 to 3600 seconds with PUMPFUN_SCAN_SECONDS. Stop with Ctrl+C.
 
 ## Output and limitations
-Each event is printed as one JSON object per line. No event does not prove the market is inactive: the provider may be disconnected, delayed, or filtering events. The current implementation has no reconnect/backfill guarantee and no on-chain verification. Treat all fields as untrusted. The same mint may legitimately have one creation event and one migration event.
+Each new event is printed as one JSON object per line and persisted in a SQLite database. The store deduplicates mint/event pairs across restarts; repeated observations update the stored count and latest normalized fields. No event does not prove the market is inactive: the provider may be disconnected, delayed, or filtering events. The current implementation has no reconnect/backfill guarantee and no on-chain verification. SQLite persistence is local to the configured path; it does not provide a shared database or hosted always-on runtime. Treat all fields as untrusted. The same mint may legitimately have one creation event and one migration event.
 
 ## Required next steps
 - Add bounded reconnect with backoff, provider-health state, and event-time freshness checks.
