@@ -18,6 +18,10 @@ class LLMAdvisorTests(unittest.TestCase):
         self.assertEqual(result.status, "WATCH_ONLY")
         self.assertEqual(result.reason, "llm_decision_out_of_schema")
 
+    def test_rejects_non_string_decision_without_crashing(self):
+        result = parse_advisor_json('{"decision":[],"score":10,"reason":"x"}')
+        self.assertEqual(result.status, "WATCH_ONLY")
+
     def test_rejects_invalid_score(self):
         result = parse_advisor_json('{"decision":"WATCH","score":101,"reason":"x"}')
         self.assertEqual(result.status, "WATCH_ONLY")
