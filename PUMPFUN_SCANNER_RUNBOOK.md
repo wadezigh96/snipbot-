@@ -46,6 +46,62 @@ Use an always-on background worker/container service that supports outbound WebS
 
 Do not deploy this worker as a Vercel serverless function or scheduled HTTP endpoint: it needs a long-lived outbound WebSocket and a writable persistent database. The Dockerfile is separate from the repository's ordinary web app build. No hosting provider has been deployed or verified by this code change; hosting credentials and the persistent volume must be configured by the owner.
 
+## Free hosting assessment and $0 fallback
+
+A suitable always-on free managed host is not currently verified. Do not mistake a free web-service tier for a free persistent worker:
+
+- Render's free web services can spin down and have ephemeral filesystems; they do not support persistent disks. That fails the current always-on WebSocket + SQLite requirement.
+- Koyeb's free instance cannot run a Worker Service and cannot attach a persistent volume.
+- Fly.io's free trial is time-limited and stops without billing setup; do not use it for a zero-cost 24/7 deployment.
+- Vercel serverless functions and scheduled HTTP endpoints are not a substitute for a long-lived WebSocket worker with durable local SQLite.
+
+Official references: https://render.com/docs/free, https://www.koyeb.com/docs/reference/instances, https://www.koyeb.com/docs/reference/volumes, and https://fly.io/docs/about/free-trial/.
+
+For strict $0 hosting today, the prepared fallback is a **local Android Termux worker**. SQLite stays in private app storage on the phone; this is persistent local storage, not a managed server and not a guaranteed 24/7 service. Android battery management, network loss, and OS process termination can interrupt it. Do not describe it as production uptime.
+
+### Free local fallback: Android Termux
+
+1. In Termux, install Python and Git if needed, then install the worker dependency from the repository root:
+
+   ```sh
+   pkg update
+   pkg install python git
+   python -m pip install -r requirements-pumpfun.txt
+   ```
+
+2. Create a private config file in an editor, not as a command-line argument:
+
+   ```sh
+   mkdir -p ~/.config
+   nano ~/.config/pumpfun-radar.env
+   chmod 600 ~/.config/pumpfun-radar.env
+   ```
+
+   File contents (replace placeholders locally; never commit or share this file):
+
+   ```sh
+   PUMPPORTAL_API_KEY='YOUR_DATA_ONLY_API_KEY'
+   SOLANA_RPC_URL=''
+   TELEGRAM_BOT_TOKEN=''
+   TELEGRAM_CHAT_ID=''
+   ```
+
+   Only use a dedicated data-only PumpPortal key. If the credential can authorize transactions, do not put it on this worker. Configure both Telegram values or leave both empty. The launcher rejects unsafe file permissions and incomplete Telegram configuration.
+
+3. Run the launcher from the repository checkout:
+
+   ```sh
+   bash deploy/termux/pumpfun-worker.sh
+   ```
+
+   It sets `PUMPFUN_RUN_FOREVER=true`, uses a private data directory under `~/.local/share/pumpfun-radar`, and keeps trading disabled. The worker stores SQLite locally and never prints the configured secrets. To interrupt it, press Ctrl+C.
+
+4. For a longer local test, keep Termux open, prevent Android battery optimization for Termux, and use `termux-wake-lock` only while you intentionally want the phone to stay awake. These measures do not guarantee uninterrupted service.
+
+The launcher is an optional zero-cost local fallback; it does not deploy anything to the internet or guarantee 24/7 availability. For a real remote worker with durable storage, a host that provides persistent disk and always-on compute will be needed, and that may incur costs.
+
+For managed Docker hosting, this repository includes `Dockerfile.pumpfun` and `requirements-pumpfun.txt`. Select the custom Dockerfile path `Dockerfile.pumpfun`, configure the variables above in private host secret settings, and mount persistent disk at `/app/data`. Confirm the mount is writable by UID 10001 before starting the worker. No hosting provider has been deployed or verified by this code change.
+
 ## Local run and tests
 
 From the repository root:
