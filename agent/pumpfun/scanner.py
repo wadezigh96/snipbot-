@@ -58,6 +58,13 @@ def normalize_event(payload: Any, *, observed_at: float | None = None) -> PumpEv
     """Normalize a websocket event without trusting provider data."""
     if not isinstance(payload, dict):
         return None
+    if observed_at is None:
+        timestamp = time.time()
+    else:
+        timestamp = _number(observed_at)
+        if timestamp is None:
+            return None
+
     mint = payload.get("mint")
     if not isinstance(mint, str) or not _BASE58_RE.fullmatch(mint):
         return None
@@ -93,7 +100,7 @@ def normalize_event(payload: Any, *, observed_at: float | None = None) -> PumpEv
     return PumpEvent(
         mint=mint,
         event_type=event_type,
-        observed_at=float(observed_at if observed_at is not None else time.time()),
+        observed_at=timestamp,
         name=name,
         symbol=symbol,
         trader=trader,
@@ -173,7 +180,7 @@ async def stream_events(
     websocket_url: str | None = None,
 ) -> AsyncIterator[PumpEvent]:
     """Yield deduplicated creation/migration events for a bounded read-only window."""
-    if not math.isfinite(seconds) or seconds <= 0 or seconds > 3600:
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not math.isfinite(seconds) or seconds <= 0 or seconds > 3600:
         raise ValueError("seconds must be > 0 and <= 3600")
 
     try:
@@ -222,7 +229,6 @@ async def main() -> None:
         async for event in stream_events(seconds=seconds):
             print(json.dumps(event.to_dict(), ensure_ascii=False, separators=(",", ":")))
     except RuntimeError as exc:
-        # The missing-key message contains no secret and is useful to the operator.
         message = str(exc)
         if message.startswith("Set PUMPPORTAL_API_KEY"):
             print(message, file=sys.stderr)
@@ -233,8 +239,6 @@ async def main() -> None:
             )
         raise SystemExit(1) from None
     except Exception:
-        # HTTP/WebSocket exceptions can include the credential-bearing URL.
-        # Never print exception reprs, tracebacks, or request URLs to the terminal.
         print(
             "Scanner stopped; connection/runtime details suppressed to protect credentials.",
             file=sys.stderr,
