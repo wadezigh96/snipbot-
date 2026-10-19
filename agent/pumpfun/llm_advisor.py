@@ -32,7 +32,7 @@ def parse_advisor_json(content: Any, *, model: str | None = None) -> AdvisorDeci
         return AdvisorDecision("WATCH_ONLY", 0, "llm_output_not_object", model)
 
     status = value.get("decision")
-    if status not in {"WATCH", "REJECT"}:
+    if not isinstance(status, str) or status not in {"WATCH", "REJECT"}:
         return AdvisorDecision("WATCH_ONLY", 0, "llm_decision_out_of_schema", model)
     score = value.get("score")
     if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 100:
