@@ -7,6 +7,7 @@ import os
 
 from agent.pumpfun.llm_advisor import advise_event
 from agent.pumpfun.scanner import stream_events
+from agent.pumpfun.rpc import verify_mint
 from agent.pumpfun.store import ObservationStore
 
 
@@ -17,17 +18,20 @@ async def main() -> None:
         async for event in stream_events(seconds=seconds):
             raw = event.to_dict()
             decision = await advise_event(raw)
+            mint_check = await verify_mint(raw["mint"])
             advisor = {
                 "status": decision.status,
                 "score": decision.score,
                 "reason": decision.reason,
                 "model": decision.model,
             }
+            raw["mint_check"] = mint_check.to_dict()
             is_new = store.record(raw, advisor, observed_at=event.observed_at)
             if not is_new:
                 continue
             output = {
                 "event": raw,
+                "mint_check": mint_check.to_dict(),
                 "llm_advisor": advisor,
                 "execution": "DISABLED",
                 "persistent_store": "SAVED",
