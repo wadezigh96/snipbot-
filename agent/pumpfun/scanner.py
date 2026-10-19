@@ -14,7 +14,8 @@ import re
 import sys
 import time
 from dataclasses import asdict, dataclass
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Callable
+import inspect
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
@@ -174,12 +175,32 @@ def build_data_ws_url(api_key: str | None = None) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
+async def _report_status(
+    callback: Callable[[str], Any] | None,
+    status: str,
+) -> None:
+    if callback is None:
+        return
+    try:
+        result = callback(status)
+        if inspect.isawaitable(result):
+            await result
+    except Exception:
+        # Observability must never break the read-only scanner.
+        return
+
+
 async def stream_events(
     *,
     seconds: float = 60,
     websocket_url: str | None = None,
+    on_status: Callable[[str], Any] | None = None,
 ) -> AsyncIterator[PumpEvent]:
-    """Yield deduplicated creation/migration events for a bounded read-only window."""
+    """Yield events for one bounded WebSocket session.
+
+    A closed/error WebSocket raises a generic RuntimeError so the caller can
+    reconnect with backoff. Provider exception details are intentionally hidden.
+    """
     if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not math.isfinite(seconds) or seconds <= 0 or seconds > 3600:
         raise ValueError("seconds must be > 0 and <= 3600")
 
@@ -194,6 +215,7 @@ async def stream_events(
     timeout = aiohttp.ClientTimeout(total=None, connect=10, sock_read=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.ws_connect(resolved_websocket_url, heartbeat=20) as ws:
+            await _report_status(on_status, "connected")
             await ws.send_json({"method": "subscribeNewToken"})
             await ws.send_json({"method": "subscribeMigration"})
             while time.monotonic() < deadline:
@@ -220,7 +242,8 @@ async def stream_events(
                     aiohttp.WSMsgType.CLOSE,
                     aiohttp.WSMsgType.ERROR,
                 }:
-                    break
+                    await _report_status(on_status, "disconnected")
+                    raise RuntimeError("pumpportal_websocket_closed")
 
 
 async def main() -> None:
