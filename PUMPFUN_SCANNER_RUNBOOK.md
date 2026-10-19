@@ -1,19 +1,30 @@
-# PumpFun FOMO Radar — read-only scanner runbook
+# PumpFun FOMO Radar — read-only scanner and LLM monitor runbook
 
 ## What this stage does
-The scanner connects to PumpPortal's third-party data WebSocket, subscribes to new-token and migration events, normalizes basic fields, deduplicates each mint/event type during the run, and emits JSON Lines. It is read-only: it never requests a wallet, signs a transaction, submits a transaction, or calls a buy/sell endpoint.
+The scanner connects to PumpPortal's third-party data WebSocket, subscribes to new-token and migration events, normalizes basic fields, deduplicates each mint/event type during the run, and emits JSON Lines. The monitor runner can optionally send normalized event fields to a configured OpenAI-compatible LLM endpoint for cautious triage.
 
-PumpPortal is a third-party provider, not the Pump.fun protocol itself. Check its current terms, reliability, API limits, and fee policies before depending on it. This scanner intentionally labels every event `WATCH_ONLY`; its score is only a transparent triage heuristic and does not establish liquidity, holder concentration, token authorities, or rug-pull safety.
+It is read-only: it never requests a wallet, signs a transaction, submits a transaction, or calls a buy/sell endpoint. LLM decisions are limited to WATCH or REJECT. Missing configuration, malformed responses, unsupported actions, and request failures all fall back to WATCH_ONLY. No model response can authorize a trade.
+
+PumpPortal is a third-party provider, not the Pump.fun protocol itself. Check its current terms, reliability, API limits, and fee policies before depending on it. Event scores and LLM opinions do not establish liquidity, holder concentration, token authorities, creator history, or rug-pull safety.
 
 ## Run locally
-Install the existing requirements, then run from the repository root:
+Install requirements from the repository root:
 
 ```bash
-python -m unittest discover -s tests -v
+pip install -r requirements.txt
+python -m unittest discover -s tests -p "test_pumpfun_*.py" -v
 PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.scanner
 ```
 
-The scanner runs for at most 60 seconds by default. Set `PUMPFUN_SCAN_SECONDS` to another value from 1 to 3600 to change the window. Stop it with Ctrl+C.
+To run scanner plus optional LLM advisory:
+
+```bash
+PUMPFUN_SCAN_SECONDS=60 python -m agent.pumpfun.run_agent
+```
+
+Without LLM_API_KEY (or OPENAI_API_KEY) and LLM_MODEL (or OPENAI_MODEL), the runner operates in WATCH_ONLY mode and does not make an LLM request. Configure an HTTPS OpenAI-compatible endpoint with LLM_BASE_URL if needed. API usage may incur separate charges; a ChatGPT subscription does not automatically include API credits. Keep all keys in local environment variables or a secret store—never commit them.
+
+The scan window defaults to 60 seconds and can be set from 1 to 3600 seconds with PUMPFUN_SCAN_SECONDS. Stop with Ctrl+C.
 
 ## Output and limitations
 Each event is printed as one JSON object per line. No event does not prove the market is inactive: the provider may be disconnected, delayed, or filtering events. The current implementation has no reconnect/backfill guarantee and no on-chain verification. Treat all fields as untrusted. The same mint may legitimately have one creation event and one migration event.
