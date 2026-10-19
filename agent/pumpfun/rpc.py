@@ -105,10 +105,15 @@ async def verify_mint(mint: str, *, rpc_url: str | None = None) -> MintCheck:
                 if response.status != 200:
                     return MintCheck("UNKNOWN", mint, f"solana_rpc_http_status_{response.status}")
                 body = await response.json(content_type=None)
-        if not isinstance(body, dict) or body.get("error") is not None:
+        if not isinstance(body, dict):
             return MintCheck("UNKNOWN", mint, "solana_rpc_error_or_invalid_response")
+        if body.get("error") is not None:
+            return MintCheck("UNKNOWN", mint, "solana_rpc_error_or_invalid_response")
+        if body.get("jsonrpc") != "2.0" or body.get("id") != 1:
+            return MintCheck("UNKNOWN", mint, "solana_rpc_response_envelope_invalid")
         result = body.get("result")
-        value = result.get("value") if isinstance(result, dict) else None
-        return parse_mint_account(mint, value)
+        if not isinstance(result, dict) or "value" not in result:
+            return MintCheck("UNKNOWN", mint, "solana_rpc_response_envelope_invalid")
+        return parse_mint_account(mint, result["value"])
     except Exception:
         return MintCheck("UNKNOWN", mint, "solana_rpc_request_failed")
