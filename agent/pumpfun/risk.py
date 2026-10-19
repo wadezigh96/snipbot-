@@ -38,6 +38,10 @@ class RiskPolicy:
         simulation_passed: bool,
     ) -> RiskDecision:
         """Return a decision; unknown, malformed, or unsafe values fail closed."""
+        gates = (data_is_fresh, quote_is_valid, simulation_passed)
+        if any(type(value) is not bool for value in gates):
+            return RiskDecision(False, "invalid_boolean_gate")
+
         numbers = (
             position_usd,
             open_exposure_usd,
