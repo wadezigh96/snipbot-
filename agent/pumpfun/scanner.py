@@ -11,6 +11,7 @@ import json
 import math
 import os
 import re
+import sys
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, AsyncIterator
@@ -217,8 +218,28 @@ async def stream_events(
 
 async def main() -> None:
     seconds = float(os.environ.get("PUMPFUN_SCAN_SECONDS", "60"))
-    async for event in stream_events(seconds=seconds):
-        print(json.dumps(event.to_dict(), ensure_ascii=False, separators=(",", ":")))
+    try:
+        async for event in stream_events(seconds=seconds):
+            print(json.dumps(event.to_dict(), ensure_ascii=False, separators=(",", ":")))
+    except RuntimeError as exc:
+        # The missing-key message contains no secret and is useful to the operator.
+        message = str(exc)
+        if message.startswith("Set PUMPPORTAL_API_KEY"):
+            print(message, file=sys.stderr)
+        else:
+            print(
+                "Scanner stopped; connection/runtime details suppressed to protect credentials.",
+                file=sys.stderr,
+            )
+        raise SystemExit(1) from None
+    except Exception:
+        # HTTP/WebSocket exceptions can include the credential-bearing URL.
+        # Never print exception reprs, tracebacks, or request URLs to the terminal.
+        print(
+            "Scanner stopped; connection/runtime details suppressed to protect credentials.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
