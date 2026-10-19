@@ -1,0 +1,27 @@
+name: PumpFun risk gate tests
+
+on:
+  pull_request:
+    paths:
+      - "agent/pumpfun/**"
+      - "tests/test_pumpfun_risk.py"
+      - ".github/workflows/pumpfun-risk-tests.yml"
+  push:
+    branches:
+      - "feat/pumpfun-fomo-radar"
+
+permissions:
+  contents: read
+
+jobs:
+  risk-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run dependency-free risk gate tests
+        run: python -m unittest discover -s tests -p "test_pumpfun_risk.py" -v
