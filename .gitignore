@@ -1,0 +1,12 @@
+# Local secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+
+# Local monitor database and runtime data
+data/*.sqlite3
+data/*.db

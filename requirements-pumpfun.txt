@@ -1,0 +1,2 @@
+# Minimal dependencies for the isolated read-only PumpFun worker.
+aiohttp>=3.9.0,<4
