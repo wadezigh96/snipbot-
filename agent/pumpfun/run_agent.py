@@ -23,6 +23,15 @@ def backoff_seconds(attempt: int, *, base: float = 2.0, maximum: float = 60.0) -
     return min(base * (2 ** min(attempt - 1, 10)), maximum)
 
 
+def validate_telegram_config(environ: dict[str, str] | None = None) -> None:
+    """Fail fast when only one half of the Telegram credential pair is configured."""
+    values = os.environ if environ is None else environ
+    token = values.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = values.get("TELEGRAM_CHAT_ID", "").strip()
+    if bool(token) != bool(chat_id):
+        raise ValueError("Configure both Telegram secret variables or leave both empty")
+
+
 def _health(status: str, *, reason: str | None = None, attempt: int | None = None) -> None:
     item: dict[str, Any] = {"type": "health", "status": status, "observed_at": time.time()}
     if reason:
@@ -42,8 +51,9 @@ async def main() -> None:
     if not 0 < seconds <= 3600:
         raise ValueError("PUMPFUN_SCAN_SECONDS must be > 0 and <= 3600")
 
-    # Validate required scanner configuration before entering any retry loop.
+    # Validate required scanner and optional Telegram configuration before retrying.
     # The credential-bearing URL stays in memory and is never logged.
+    validate_telegram_config()
     websocket_url = build_data_ws_url()
     db_path = os.environ.get("PUMPFUN_DB_PATH", "data/pumpfun_monitor.sqlite3")
     deadline = None if run_forever else time.monotonic() + seconds
