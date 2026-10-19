@@ -14,6 +14,7 @@ import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, AsyncIterator
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 PUMPPORTAL_DATA_WS = "wss://pumpportal.fun/api/data"
@@ -154,10 +155,21 @@ def score_event(
     return min(score, 100), reasons
 
 
+def build_data_ws_url(api_key: str | None = None) -> str:
+    """Build the provider URL from a secret supplied only at runtime."""
+    secret = api_key if api_key is not None else os.environ.get("PUMPPORTAL_API_KEY")
+    if not isinstance(secret, str) or not secret.strip():
+        raise RuntimeError("Set PUMPPORTAL_API_KEY in the local environment; never commit the real key.")
+    parts = urlsplit(PUMPPORTAL_DATA_WS)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["api-key"] = secret.strip()
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
 async def stream_events(
     *,
     seconds: float = 60,
-    websocket_url: str = PUMPPORTAL_DATA_WS,
+    websocket_url: str | None = None,
 ) -> AsyncIterator[PumpEvent]:
     """Yield deduplicated creation/migration events for a bounded read-only window."""
     if not math.isfinite(seconds) or seconds <= 0 or seconds > 3600:
@@ -168,11 +180,12 @@ async def stream_events(
     except ImportError as exc:
         raise RuntimeError("Install project requirements first: pip install -r requirements.txt") from exc
 
+    resolved_websocket_url = websocket_url or build_data_ws_url()
     seen: set[tuple[str, str]] = set()
     deadline = time.monotonic() + seconds
     timeout = aiohttp.ClientTimeout(total=None, connect=10, sock_read=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.ws_connect(websocket_url, heartbeat=20) as ws:
+        async with session.ws_connect(resolved_websocket_url, heartbeat=20) as ws:
             await ws.send_json({"method": "subscribeNewToken"})
             await ws.send_json({"method": "subscribeMigration"})
             while time.monotonic() < deadline:
