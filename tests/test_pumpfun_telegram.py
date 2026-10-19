@@ -32,5 +32,48 @@ class TelegramNotifierTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await send_telegram_message(" "), "failed")
 
 
+    async def test_successful_send_returns_only_status(self):
+        import sys
+        import types
+
+        class FakeResponse:
+            status = 200
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return None
+
+            async def json(self, content_type=None):
+                return {"ok": True}
+
+        class FakeSession:
+            def __init__(self, **kwargs):
+                self.url = None
+                self.payload = None
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return None
+
+            def post(self, url, json):
+                self.url = url
+                self.payload = json
+                return FakeResponse()
+
+        fake_aiohttp = types.SimpleNamespace(
+            ClientTimeout=lambda **kwargs: object(),
+            ClientSession=FakeSession,
+        )
+        with patch.dict("os.environ", {
+            "TELEGRAM_BOT_TOKEN": "test-secret-token",
+            "TELEGRAM_CHAT_ID": "12345",
+        }), patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            self.assertEqual(await send_telegram_message("safe test alert"), "sent")
+
+
 if __name__ == "__main__":
     unittest.main()
