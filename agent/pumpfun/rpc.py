@@ -45,6 +45,10 @@ def parse_mint_account(mint: str, account: Any) -> MintCheck:
         return MintCheck("UNKNOWN", mint, "mint_account_base64_invalid")
     if len(data) < 82:
         return MintCheck("REJECT", mint, "mint_account_data_too_short")
+    # Token-2022 can append TLV extensions that this base-layout parser does not
+    # interpret. Do not label such accounts VERIFIED until extensions are parsed.
+    if owner == TOKEN_2022_PROGRAM and len(data) > 82:
+        return MintCheck("UNKNOWN", mint, "token_2022_extensions_not_parsed")
 
     mint_option = int.from_bytes(data[0:4], "little")
     initialized = data[45]
