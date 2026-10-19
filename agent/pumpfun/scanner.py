@@ -15,7 +15,6 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any, AsyncIterator
 
-import aiohttp
 
 PUMPPORTAL_DATA_WS = "wss://pumpportal.fun/api/data"
 _BASE58_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
@@ -163,6 +162,11 @@ async def stream_events(
     """Yield deduplicated creation/migration events for a bounded read-only window."""
     if not math.isfinite(seconds) or seconds <= 0 or seconds > 3600:
         raise ValueError("seconds must be > 0 and <= 3600")
+
+    try:
+        import aiohttp
+    except ImportError as exc:
+        raise RuntimeError("Install project requirements first: pip install -r requirements.txt") from exc
 
     seen: set[tuple[str, str]] = set()
     deadline = time.monotonic() + seconds
