@@ -10,7 +10,7 @@ const {
   parseCommand,
   validateUpdate,
   handleTelegramUpdate,
-} = require("../api/_lib/telegram-control");
+} = require("../lib/telegram-control");
 const { createHandler } = require("../api/telegram-webhook");
 
 const env = {
