@@ -7,7 +7,8 @@ import os
 import time
 from typing import Any
 
-from agent.pumpfun.control_store import MonitorControl, run_control_loop\nfrom agent.pumpfun.llm_advisor import advise_event
+from agent.pumpfun.control_store import MonitorControl, run_control_loop
+from agent.pumpfun.llm_advisor import advise_event
 from agent.pumpfun.scanner import build_data_ws_url, stream_events
 from agent.pumpfun.rpc import verify_mint
 from agent.pumpfun.store import ObservationStore
@@ -71,6 +72,8 @@ async def main() -> None:
         if status == "connected":
             consecutive_failures = 0
             _health("connected")
+            if control.enabled:
+                _health("control_state", reason="running" if control.running else (control.last_error or "paused"))
             if outage:
                 result = await send_telegram_message(
                     "PumpFun FOMO Radar: data connection recovered. Monitoring remains read-only; execution is DISABLED."
