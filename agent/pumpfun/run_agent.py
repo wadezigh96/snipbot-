@@ -54,6 +54,12 @@ async def main() -> None:
     # Validate required scanner and optional Telegram configuration before retrying.
     # The credential-bearing URL stays in memory and is never logged.
     validate_telegram_config()
+    control_raw = os.environ.get("PUMPFUN_CONTROL_ENABLED", "false").strip().lower()
+    if control_raw not in {"1", "true", "yes", "0", "false", "no"}:
+        raise ValueError("PUMPFUN_CONTROL_ENABLED must be true or false")
+    control = MonitorControl(enabled=control_raw in {"1", "true", "yes"})
+    control_stop = asyncio.Event()
+    control_task = asyncio.create_task(run_control_loop(control, control_stop))
     websocket_url = build_data_ws_url()
     db_path = os.environ.get("PUMPFUN_DB_PATH", "data/pumpfun_monitor.sqlite3")
     deadline = None if run_forever else time.monotonic() + seconds
@@ -92,6 +98,8 @@ async def main() -> None:
                     websocket_url=websocket_url,
                     on_status=status_callback,
                 ):
+                    if control.enabled and not control.running:
+                        continue
                     raw = event.to_dict()
                     decision = await advise_event(raw)
                     mint_check = await verify_mint(raw["mint"])
