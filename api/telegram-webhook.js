@@ -1,6 +1,6 @@
 "use strict";
 
-const { safeEqual, createRedisStore, handleTelegramUpdate } = require("./_lib/telegram-control");
+const { safeEqual, createRedisStore, handleTelegramUpdate } = require("../lib/telegram-control");
 
 function sendJson(res, statusCode, payload) {
   res.statusCode = statusCode;
