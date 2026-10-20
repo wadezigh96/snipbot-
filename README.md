@@ -1,16 +1,3 @@
-# SnipBot BNB — Autonomous Meme Sniper Agent
-
-Fully autonomous AI agent for BNB Chain meme coins.
-
-**Target:** four.meme + Flap  
-**Mode:** Fully Autonomous  
-**Risk:** 3–5% wallet per trade  
-**Pairs:** BNB (+ USDT ready)  
-**Anti-rug:** LP burn → Holder/dev → Volume ($8k–$15k)
-
-Built for **BNB Chain Set and Earn** (ERC-8004).
-
----
 
 ## Install & Run
 
