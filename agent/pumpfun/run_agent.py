@@ -7,7 +7,7 @@ import os
 import time
 from typing import Any
 
-from agent.pumpfun.llm_advisor import advise_event
+from agent.pumpfun.control_store import MonitorControl, run_control_loop\nfrom agent.pumpfun.llm_advisor import advise_event
 from agent.pumpfun.scanner import build_data_ws_url, stream_events
 from agent.pumpfun.rpc import verify_mint
 from agent.pumpfun.store import ObservationStore
