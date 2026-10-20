@@ -43,6 +43,7 @@ function memoryStore(initial = {}) {
       data.set(key, String(value));
       return "OK";
     },
+    async del(key) { data.delete(key); return 1; },
   };
 }
 
