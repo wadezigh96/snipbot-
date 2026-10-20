@@ -5,7 +5,6 @@ It never reads a private key, signs, simulates, or broadcasts a transaction.
 """
 from __future__ import annotations
 
-import os
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -124,9 +123,3 @@ async def build_unsigned_transaction(
         # Do not leak provider responses, URLs, or environment secrets to logs.
         raise TradeBuildError("pumpportal_request_failed") from None
 
-
-def local_api_ready() -> bool:
-    """Check only whether the explicit local API configuration switch is on."""
-    return os.environ.get("PUMPFUN_LOCAL_TX_BUILD_ENABLED", "").strip().lower() in {
-        "1", "true", "yes"
-    }
