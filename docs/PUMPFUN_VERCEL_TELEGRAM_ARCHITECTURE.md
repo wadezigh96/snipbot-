@@ -1,6 +1,6 @@
 # PumpFun FOMO Radar — Vercel + Telegram Cloud Architecture
 
-Status: **architecture proposal / not deployed**. This document intentionally does not enable trading.
+Status: **implementation in an isolated draft branch / not deployed**. Trading remains disabled.
 
 ## Audit result
 
@@ -32,6 +32,15 @@ Telegram Bot API <---- webhook ---- Vercel HTTPS Function
                                   - writes command/state to durable store
                                   - never signs or broadcasts transactions
 ```
+
+## Implementation status on this branch
+
+- Added `api/telegram-webhook.js` for authenticated Telegram webhook requests.
+- Added `lib/telegram-control.js` with strict owner/chat allowlisting, private-chat-only commands, a webhook secret check, HTTPS-only Upstash-compatible Redis REST calls, a default-paused state, and duplicate-update protection.
+- Added Node tests for authentication, allowed commands, invalid payloads, duplicate updates, and generic failure responses.
+- Added `agent/pumpfun/control_store.py`; when `PUMPFUN_CONTROL_ENABLED=true`, the worker polls durable state and publishes a short-lived heartbeat. Missing/invalid state or store/heartbeat failure keeps the worker paused.
+- The worker integration is opt-in. Do not enable it in production until CI passes and a persistent shared store has been provisioned and smoke-tested.
+- These files have not been deployed to Vercel and no Telegram webhook has been registered.
 
 ## Important Vercel limitation
 
@@ -88,7 +97,7 @@ Vercel control route:
 - `TELEGRAM_WEBHOOK_SECRET`
 - `TELEGRAM_OWNER_USER_ID`
 - `TELEGRAM_OWNER_CHAT_ID`
-- `CONTROL_STORE_URL` / provider-specific credentials
+- `CONTROL_STORE_URL` / provider-specific credentials (HTTPS REST endpoint compatible with Upstash Redis)
 
 Worker:
 - `PUMPPORTAL_API_KEY` (must be data-only; do not host wallet-capable credentials)
@@ -96,7 +105,7 @@ Worker:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `CONTROL_STORE_URL` / provider-specific credentials
-- `PUMPFUN_RUN_FOREVER=true`
+- `PUMPFUN_CONTROL_ENABLED=true` (only after the shared store and control route are verified; otherwise worker remains in local mode)\n- `PUMPFUN_RUN_FOREVER=true`
 - `PUMPFUN_SCAN_SECONDS=3600`
 - `PUMPFUN_DB_PATH=/app/data/pumpfun_monitor.sqlite3`
 
