@@ -68,7 +68,7 @@ async def control_tick(state: MonitorControl) -> None:
         if result != "OK":
             state.running = False
             state.last_error = "heartbeat_write_failed"
-    except ControlStoreError:
+    except Exception:
         state.running = False
         state.last_error = "control_store_unavailable"
 
