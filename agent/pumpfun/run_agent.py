@@ -7,6 +7,7 @@ import os
 import time
 from typing import Any
 
+from agent.pumpfun.control_store import MonitorControl, run_control_loop
 from agent.pumpfun.llm_advisor import advise_event
 from agent.pumpfun.scanner import build_data_ws_url, stream_events
 from agent.pumpfun.rpc import verify_mint
@@ -54,6 +55,12 @@ async def main() -> None:
     # Validate required scanner and optional Telegram configuration before retrying.
     # The credential-bearing URL stays in memory and is never logged.
     validate_telegram_config()
+    control_raw = os.environ.get("PUMPFUN_CONTROL_ENABLED", "false").strip().lower()
+    if control_raw not in {"1", "true", "yes", "0", "false", "no"}:
+        raise ValueError("PUMPFUN_CONTROL_ENABLED must be true or false")
+    control = MonitorControl(enabled=control_raw in {"1", "true", "yes"})
+    control_stop = asyncio.Event()
+    control_task = asyncio.create_task(run_control_loop(control, control_stop))
     websocket_url = build_data_ws_url()
     db_path = os.environ.get("PUMPFUN_DB_PATH", "data/pumpfun_monitor.sqlite3")
     deadline = None if run_forever else time.monotonic() + seconds
@@ -65,6 +72,8 @@ async def main() -> None:
         if status == "connected":
             consecutive_failures = 0
             _health("connected")
+            if control.enabled:
+                _health("control_state", reason="running" if control.running else (control.last_error or "paused"))
             if outage:
                 result = await send_telegram_message(
                     "PumpFun FOMO Radar: data connection recovered. Monitoring remains read-only; execution is DISABLED."
@@ -92,6 +101,8 @@ async def main() -> None:
                     websocket_url=websocket_url,
                     on_status=status_callback,
                 ):
+                    if control.enabled and not control.running:
+                        continue
                     raw = event.to_dict()
                     decision = await advise_event(raw)
                     mint_check = await verify_mint(raw["mint"])
