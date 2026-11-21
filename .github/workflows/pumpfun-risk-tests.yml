@@ -1,0 +1,36 @@
+name: PumpFun scanner and risk tests
+
+on:
+  pull_request:
+    paths:
+      - "agent/pumpfun/**"
+      - "tests/test_pumpfun_*.py"
+      - "Dockerfile.pumpfun"
+      - "requirements-pumpfun.txt"
+      - "PUMPFUN_SCANNER_RUNBOOK.md"
+      - "deploy/termux/**"
+      - ".env.example"
+      - ".github/workflows/pumpfun-risk-tests.yml"
+  push:
+    branches:
+      - "feat/pumpfun-fomo-radar"
+
+permissions:
+  contents: read
+
+jobs:
+  pumpfun-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run PumpFun tests
+        run: python -m unittest discover -s tests -p "test_pumpfun_*.py" -v
+      - name: Check Termux launcher syntax
+        run: bash -n deploy/termux/pumpfun-worker.sh
+      - name: Build isolated read-only worker image
+        run: docker build -f Dockerfile.pumpfun -t pumpfun-readonly-worker:test .

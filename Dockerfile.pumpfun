@@ -1,0 +1,22 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PUMPFUN_RUN_FOREVER=true \
+    PUMPFUN_SCAN_SECONDS=3600 \
+    PUMPFUN_DB_PATH=/app/data/pumpfun_monitor.sqlite3
+
+WORKDIR /app
+
+COPY requirements-pumpfun.txt /app/requirements-pumpfun.txt
+RUN pip install --no-cache-dir -r /app/requirements-pumpfun.txt \
+    && useradd --create-home --uid 10001 worker \
+    && mkdir -p /app/data \
+    && chown -R worker:worker /app
+
+COPY agent/__init__.py /app/agent/__init__.py
+COPY agent/pumpfun /app/agent/pumpfun
+
+USER worker
+VOLUME ["/app/data"]
+CMD ["python", "-m", "agent.pumpfun.run_agent"]
