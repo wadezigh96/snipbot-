@@ -108,3 +108,28 @@ $1, capped at $25, fee reserve always untouched, size 0 when equity falls
 below the reserve (strategy is dead; stop). This fixes the *plan*, not the
 odds: the cap on loss is the $5 itself, and the tracker exists so progress
 — or failure — is measured instead of imagined.
+
+## Runner (PR #6) — ready to run
+
+```bash
+pip install -r requirements-pumpfun.txt
+
+# Paper (default, no wallet, no transactions):
+SNIPER_MODE=paper python -m agent.pumpfun.run_live
+
+# Live (deliberate, owner-only):
+SNIPER_MODE=live SNIPER_LIVE_ENABLED=true \
+SNIPER_LIVE_CONFIRM=I_UNDERSTAND_LIVE_TRADING \
+SOLANA_KEYPAIR_PATH=$HOME/.config/sniper-keypair.json \
+python -m agent.pumpfun.run_live
+```
+
+Termux: `deploy/termux/pumpfun-live.sh` reads `~/.config/pumpfun-sniper.env`
+(chmod 600) and re-checks the live gate in shell before Python even starts.
+
+Paper mode polls DexScreener every 30s for open positions and runs the exit
+ladder, printing `goal_progress` JSON lines. Live mode tracks open positions
+in memory for the risk policy; exits for live positions are not automated
+yet — sell from the wallet/FOMO app, or extend the executor with a sell
+path mirroring `buy`. Live startup refuses (exit 2) when the gate is closed
+or no keypair is configured.
