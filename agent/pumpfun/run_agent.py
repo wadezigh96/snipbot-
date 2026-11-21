@@ -7,8 +7,11 @@ import os
 import time
 from typing import Any
 
+from agent.pumpfun.antirug import evaluate_rug_risk
+from agent.pumpfun.bubblemap import fetch_solana_bubblemap
 from agent.pumpfun.control_store import MonitorControl, run_control_loop
 from agent.pumpfun.llm_advisor import advise_event
+from agent.pumpfun.llm_sniper import score_candidate
 from agent.pumpfun.scanner import build_data_ws_url, stream_events
 from agent.pumpfun.rpc import verify_mint
 from agent.pumpfun.store import ObservationStore
@@ -113,6 +116,22 @@ async def main() -> None:
                         "model": decision.model,
                     }
                     raw["mint_check"] = mint_check.to_dict()
+                    bubblemap = await fetch_solana_bubblemap(raw["mint"])
+                    # No sell simulation exists yet, so this gate correctly
+                    # rejects every candidate for execution; it is reported
+                    # for triage only and execution stays DISABLED.
+                    rug = evaluate_rug_risk(
+                        mint_check=mint_check,
+                        bubblemap=bubblemap,
+                        liquidity_usd=None,
+                        v_sol_in_curve=raw.get("v_sol_in_curve"),
+                        market_cap_usd=None,
+                        sell_simulation_passed=False,
+                    )
+                    sniper = await score_candidate(raw, rug, bubblemap.to_dict())
+                    raw["bubblemap"] = bubblemap.to_dict()
+                    raw["antirug"] = rug.to_dict()
+                    raw["sniper"] = sniper.to_dict()
                     is_new = store.record(raw, advisor, observed_at=event.observed_at)
                     if not is_new:
                         continue
@@ -122,7 +141,10 @@ async def main() -> None:
                     output = {
                         "event": raw,
                         "mint_check": mint_check.to_dict(),
+                        "bubblemap": bubblemap.to_dict(),
+                        "antirug": rug.to_dict(),
                         "llm_advisor": advisor,
+                        "llm_sniper": sniper.to_dict(),
                         "execution": "DISABLED",
                         "persistent_store": "SAVED",
                         "telegram_notification": notification,
