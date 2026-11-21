@@ -34,3 +34,16 @@ def test_simulate_with_fake_post():
 
     result = asyncio.run(simulate_transaction(b"abc", rpc_url="https://rpc.example", post=fake_post))
     assert result.passed
+
+
+def test_parse_token_balance():
+    from agent.pumpfun.simulation import parse_token_balance
+    body = {"result": {"value": [
+        {"account": {"data": {"parsed": {"info": {"tokenAmount": {"uiAmount": 12.5}}}}}},
+        {"account": {"data": {"parsed": {"info": {"tokenAmount": {"uiAmount": 2.5}}}}}},
+        {"account": {"data": {"parsed": {"info": {}}}}},
+    ]}}
+    assert parse_token_balance(body) == 15.0
+    assert parse_token_balance({"result": {"value": []}}) == 0.0
+    assert parse_token_balance({"error": {}}) is None
+    assert parse_token_balance(None) is None

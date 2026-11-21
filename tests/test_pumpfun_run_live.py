@@ -41,7 +41,7 @@ async def watch(event, rug, bubblemap):
 def make_ctx(mode="paper", score_fn=approve, executor=None, wallet=None):
     deps = RunnerDeps(
         verify_mint_fn=lambda mint: _coro(GOOD_MINT),
-        bubblemap_fn=lambda mint: _coro(GOOD_HOLDERS),
+        bubblemap_fn=lambda mint, exclude=None: _coro(GOOD_HOLDERS),
         score_fn=score_fn,
         build_tx_fn=fake_build,
         simulate_fn=fake_sim_ok,
@@ -133,3 +133,38 @@ def test_poll_paper_positions_exits_on_stop_loss():
     ctx.deps.price_fn = lambda mint: _coro(0.001)  # -50% from 0.002 entry
     asyncio.run(poll_paper_positions(ctx, interval_seconds=0, iterations=1))
     assert ctx.paper.positions[0].closed
+
+
+def test_early_mode_blocks_late_curve_token():
+    ctx = make_ctx()
+    ctx.early_mode = True
+    late = {**EVENT, "v_sol_in_curve": 60.0}
+    out = asyncio.run(process_event(late, ctx, now=1000.0))
+    assert out["early_passed"] is False and out["action"] == "none"
+    early = {**EVENT, "initial_buy": 1.0}
+    out2 = asyncio.run(process_event(early, ctx, now=1000.0))
+    assert out2["early_passed"] is True and out2["action"] == "paper_opened"
+
+
+class FakeLiveExecutor(FakeExecutor):
+    def __init__(self):
+        super().__init__()
+        self.sells = []
+
+    async def sell(self, **kwargs):
+        self.sells.append(kwargs)
+        return ExecutionResult("SUBMITTED", "ok", signature="sellsig")
+
+
+def test_live_exit_poll_sells_on_stop_loss():
+    executor = FakeLiveExecutor()
+    ctx = make_ctx(mode="live", executor=executor, wallet="Wa1111111111111111111111111111111111111111")
+    out = asyncio.run(process_event(dict(EVENT), ctx, now=1000.0))
+    assert out["action"] == "live_submitted" and len(ctx.live_positions) == 1
+    ctx.deps.token_balance_fn = lambda wallet, mint: _coro(1000.0)
+    ctx.deps.price_fn = lambda mint: _coro(0.001)  # entry was 0.002 -> -50%
+    from agent.pumpfun.run_live import poll_live_positions
+    asyncio.run(poll_live_positions(ctx, interval_seconds=0, iterations=1))
+    assert len(executor.sells) == 1
+    assert executor.sells[0]["amount_tokens"] == "1000.000000"
+    assert ctx.live_positions[0].tracker.closed

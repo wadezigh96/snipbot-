@@ -29,11 +29,13 @@ from agent.pumpfun.antirug import RugVerdict, evaluate_rug_risk
 from agent.pumpfun.bubblemap import BubbleMapResult, fetch_solana_bubblemap
 from agent.pumpfun.executor import Executor, LiveConfig, build_default_executor
 from agent.pumpfun.llm_sniper import SniperDecision, score_candidate
-from agent.pumpfun.paper import MicroPlan, PaperEngine, goal_progress, next_position_usd
+from agent.pumpfun.early import evaluate_early_entry
+from agent.pumpfun.paper import (LadderTracker, MicroPlan, PaperEngine, goal_progress,
+                                 next_position_usd)
 from agent.pumpfun.risk import RiskPolicy
 from agent.pumpfun.rpc import MintCheck, verify_mint
 from agent.pumpfun.simulation import (SimulationResult, classify_sell_simulation,
-                                      simulate_transaction)
+                                      fetch_token_balance, simulate_transaction)
 from agent.pumpfun.trade_ledger import TradeLedger
 
 SOL_MINT = "So11111111111111111111111111111111111111112"
@@ -105,11 +107,14 @@ async def sol_price_usd(environ: dict[str, str] | None = None, **kw: Any) -> flo
 @dataclass
 class RunnerDeps:
     verify_mint_fn: Callable[[str], Awaitable[MintCheck]] = field(default=lambda mint: verify_mint(mint))
-    bubblemap_fn: Callable[[str], Awaitable[BubbleMapResult]] = field(default=lambda mint: fetch_solana_bubblemap(mint))
+    bubblemap_fn: Callable[..., Awaitable[BubbleMapResult]] = field(
+        default=lambda mint, exclude=None: fetch_solana_bubblemap(mint, exclude_owners=exclude))
     score_fn: Callable[..., Awaitable[SniperDecision]] = field(default=score_candidate)
     build_tx_fn: Callable[..., Awaitable[bytes]] | None = None
     simulate_fn: Callable[[bytes], Awaitable[SimulationResult]] = field(default=lambda tx: simulate_transaction(tx))
     price_fn: Callable[[str], Awaitable[float | None]] = field(default=lambda mint: fetch_price_usd(mint))
+    token_balance_fn: Callable[[str, str], Awaitable[float | None]] = field(
+        default=lambda wallet, mint: fetch_token_balance(wallet, mint))
 
 
 @dataclass
@@ -128,6 +133,14 @@ class RunnerContext:
     order_seq: int = 0
     live_open_positions: int = 0
     live_exposure_usd: float = 0.0
+    early_mode: bool = False
+    live_positions: list["LivePosition"] = field(default_factory=list)
+
+
+@dataclass
+class LivePosition:
+    mint: str
+    tracker: LadderTracker
 
 
 async def _sell_route_proof(ctx: RunnerContext, mint: str) -> SimulationResult:
@@ -150,7 +163,8 @@ async def process_event(event: dict[str, Any], ctx: RunnerContext, *, now: float
     out: dict[str, Any] = {"mint": mint, "symbol": event.get("symbol"), "mode": ctx.mode}
 
     mint_check = await ctx.deps.verify_mint_fn(mint)
-    bubblemap = await ctx.deps.bubblemap_fn(mint)
+    exclude = {event["pool"]} if event.get("pool") else None
+    bubblemap = await ctx.deps.bubblemap_fn(mint, exclude)
     proof = await _sell_route_proof(ctx, mint)
 
     market_cap_usd = None
@@ -168,6 +182,12 @@ async def process_event(event: dict[str, Any], ctx: RunnerContext, *, now: float
         "antirug_reasons": list(rug.reasons), "sniper_status": sniper.status,
         "action": "none",
     })
+    if ctx.early_mode:
+        early = evaluate_early_entry(event, mint_check=mint_check, bubblemap=bubblemap)
+        out["early_passed"] = early.passed
+        out["early_reasons"] = list(early.reasons)
+        if not early.passed:
+            return out
     if sniper.status != "PAPER_BUY_CANDIDATE":
         return out
 
@@ -210,9 +230,60 @@ async def process_event(event: dict[str, Any], ctx: RunnerContext, *, now: float
     if result.status == "SUBMITTED":
         ctx.live_open_positions += 1
         ctx.live_exposure_usd += position_usd
+        ctx.live_positions.append(LivePosition(
+            mint=mint, tracker=LadderTracker(entry_price=price, opened_at=ts)))
     out["action"] = "live_submitted" if result.status == "SUBMITTED" else f"live_refused:{result.reason}"
     out["signature"] = result.signature
     return out
+
+
+async def poll_live_positions(ctx: RunnerContext, *, interval_seconds: float = 30.0,
+                              iterations: int | None = None) -> None:
+    """Drive live exits: ladder decides a fraction, executor sells it.
+
+    Token amounts come from the wallet's actual on-chain balance each time.
+    If a sell is refused, the sold fraction is restored so the next poll
+    retries the amount (stage/stop changes from the ladder stay — they are
+    the conservative direction, e.g. a break-even stop is never un-armed).
+    """
+    done = 0
+    while iterations is None or done < iterations:
+        await asyncio.sleep(interval_seconds if done or iterations is None else 0)
+        done += 1
+        if ctx.executor is None or ctx.wallet is None:
+            return
+        for position in list(ctx.live_positions):
+            if position.tracker.closed:
+                continue
+            price = await ctx.deps.price_fn(position.mint)
+            if price is None:
+                continue
+            action, fraction = position.tracker.update(price, now=time.time())
+            if fraction <= 0:
+                continue
+            balance = await ctx.deps.token_balance_fn(ctx.wallet, position.mint)
+            if balance is None or balance <= 0:
+                print(json.dumps({"type": "live_exit_skipped", "mint": position.mint,
+                                  "reason": "token_balance_unknown_or_zero"},
+                                 separators=(",", ":")), flush=True)
+                continue
+            # fraction is of the ORIGINAL position; the tracker already
+            # consumed it, so convert using remaining+fraction share.
+            share = fraction / (position.tracker.remaining_fraction + fraction)
+            amount = balance * share
+            ctx.order_seq += 1
+            result = await ctx.executor.sell(
+                client_order_id=f"exit-{int(time.time())}-{ctx.order_seq}",
+                mint=position.mint, amount_tokens=f"{amount:.6f}", wallet=ctx.wallet,
+            )
+            print(json.dumps({"type": "live_exit", "mint": position.mint, "action": action,
+                              "amount_tokens": round(amount, 6), "price_usd": price,
+                              "result": result.status, "reason": result.reason,
+                              "signature": result.signature}, separators=(",", ":")), flush=True)
+            if result.status != "SUBMITTED":
+                # Roll the tracker back: the tokens are still in the wallet.
+                position.tracker.remaining_fraction += fraction
+                position.tracker.closed = False
 
 
 async def poll_paper_positions(ctx: RunnerContext, *, interval_seconds: float = 30.0,
@@ -280,7 +351,8 @@ async def run() -> int:
             deps.build_tx_fn = None
 
     ctx = RunnerContext(mode=mode, plan=plan, deps=deps, paper=PaperEngine(plan),
-                        proof_wallet=proof_wallet, executor=executor, wallet=wallet)
+                        proof_wallet=proof_wallet, executor=executor, wallet=wallet,
+                        early_mode=os.environ.get("SNIPER_EARLY_MODE", "").strip().lower() == "true")
     ctx.sol_usd = await sol_price_usd()
     print(json.dumps({"type": "startup", "mode": mode, "bankroll_usd": plan.bankroll_usd,
                       "target_usd": plan.target_usd, "sol_price_usd": ctx.sol_usd},
@@ -289,7 +361,8 @@ async def run() -> int:
     from agent.pumpfun.scanner import stream_events
 
     seconds = float(os.environ.get("PUMPFUN_SCAN_SECONDS", "3600"))
-    poll_task = asyncio.create_task(poll_paper_positions(ctx)) if mode == "paper" else None
+    poll_task = asyncio.create_task(
+        poll_paper_positions(ctx) if mode == "paper" else poll_live_positions(ctx))
     try:
         async for event in stream_events(seconds=seconds):
             report = await process_event(event.to_dict(), ctx)

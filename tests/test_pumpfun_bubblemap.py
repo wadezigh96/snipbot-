@@ -41,3 +41,13 @@ def test_evm_holder_dicts_adapter():
     r = analyze_holder_dicts(holders, total_supply=1000.0)
     assert r.status == "OK"
     assert r.holders_seen == 50
+
+
+def test_bonding_curve_account_excluded():
+    # Curve holds 850 of 1000 supply by design; real holders are dispersed.
+    holders = [("curve", 850.0)] + [(f"w{i}", 3.0) for i in range(50)]
+    r = analyze_holders(holders, total_supply=1000.0, exclude_owners={"curve"})
+    assert r.status == "OK"
+    assert r.top1_pct == 2.0  # 3 / (1000-850)
+    without = analyze_holders(holders, total_supply=1000.0)
+    assert without.status == "REJECT"  # curve alone would look like a whale

@@ -184,3 +184,71 @@ def next_position_usd(plan: MicroPlan, equity_usd: float) -> float:
     scaled = equity_usd * 0.20
     size = min(max(plan.position_usd, scaled), 25.0, equity_usd - plan.fee_reserve_usd)
     return round(max(size, 0.0), 4)
+
+
+# --- Generic exit ladder (used by live positions; paper engine has its own
+# cash accounting but the same thresholds, plus a moonbag stage) ------------
+
+@dataclass
+class LadderTracker:
+    """Stage machine for one position's exits.
+
+    Returns (action, fraction_of_original_to_sell) from ``update``:
+    SL -45% -> TP1 2x sell 40% + break-even stop -> TP2 5x sell 25% ->
+    TP3 10x sell 20% -> moonbag 15% rides with a -50%-from-peak trailing
+    stop (max 24h). The moonbag is the only part that can capture a
+    >1000% move; everything before it is risk removal.
+    """
+
+    entry_price: float
+    opened_at: float
+    max_hold_hours: float = 6.0
+    remaining_fraction: float = 1.0
+    stop_price: float = 0.0
+    stage: int = 0
+    peak_price: float = 0.0
+    moonbag: bool = False
+    closed: bool = False
+
+    def __post_init__(self) -> None:
+        self.stop_price = self.entry_price * 0.55
+        self.peak_price = self.entry_price
+
+    def _sell(self, action: str, fraction: float) -> tuple[str, float]:
+        fraction = min(fraction, self.remaining_fraction)
+        self.remaining_fraction -= fraction
+        if self.remaining_fraction <= 1e-9:
+            self.remaining_fraction = 0.0
+            self.closed = True
+        return action, fraction
+
+    def update(self, price: float, *, now: float) -> tuple[str, float]:
+        if self.closed or price <= 0 or not math.isfinite(price):
+            return "hold", 0.0
+        self.peak_price = max(self.peak_price, price)
+        age_hours = (now - self.opened_at) / 3600.0
+
+        if self.moonbag:
+            if price <= self.peak_price * 0.5:
+                return self._sell("moonbag_trailing_stop", self.remaining_fraction)
+            if age_hours >= 24.0:
+                return self._sell("moonbag_time_stop", self.remaining_fraction)
+            return "hold", 0.0
+
+        if price <= self.stop_price:
+            return self._sell("stop_loss", self.remaining_fraction)
+        multiple = price / self.entry_price
+        if self.stage == 0 and multiple >= 2.0:
+            self.stage = 1
+            self.stop_price = self.entry_price
+            return self._sell("tp1_sell_40pct_breakeven_stop", 0.40)
+        if self.stage == 1 and multiple >= 5.0:
+            self.stage = 2
+            return self._sell("tp2_sell_25pct", 0.25)
+        if self.stage == 2 and multiple >= 10.0:
+            self.stage = 3
+            self.moonbag = True
+            return self._sell("tp3_sell_20pct_moonbag_armed", 0.20)
+        if age_hours >= self.max_hold_hours:
+            return self._sell("time_stop", self.remaining_fraction)
+        return "hold", 0.0

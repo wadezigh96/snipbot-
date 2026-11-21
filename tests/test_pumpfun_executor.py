@@ -77,3 +77,33 @@ def test_success_path_submits_and_records_ledger():
     order = ledger.get_order("ord-1")
     assert order["state"] == "SUBMITTED" and order["tx_signature"] == "5" * 64
     ledger.close()
+
+
+def sell_kwargs(**over):
+    kw = dict(client_order_id="sell-1", mint=MINT, amount_tokens="1234.5", wallet=WALLET)
+    kw.update(over)
+    return kw
+
+
+def test_sell_success_path_and_ledger():
+    ledger = TradeLedger(":memory:")
+    ex = make_executor(ledger=ledger)
+    result = asyncio.run(ex.sell(**sell_kwargs()))
+    assert result.status == "SUBMITTED"
+    order = ledger.get_order("sell-1")
+    assert order["side"] == "sell" and order["state"] == "SUBMITTED"
+    ledger.close()
+
+
+def test_sell_refused_when_gate_closed_and_bad_amount():
+    ex = make_executor(config=CLOSED)
+    assert asyncio.run(ex.sell(**sell_kwargs())).reason == "live_not_enabled"
+    ex2 = make_executor()
+    assert asyncio.run(ex2.sell(**sell_kwargs(amount_tokens="0"))).reason == "sell_amount_must_be_positive"
+    assert asyncio.run(ex2.sell(**sell_kwargs(amount_tokens="abc"))).reason == "invalid_sell_amount"
+
+
+def test_sell_simulation_failure_refuses():
+    ex = make_executor(sim=fake_sim_fail)
+    result = asyncio.run(ex.sell(**sell_kwargs()))
+    assert result.status == "REFUSED" and "sell_simulation_failed" in result.reason
