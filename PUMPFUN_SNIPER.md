@@ -78,3 +78,33 @@ behavior until a verified sell-quote/simulation stage is added.
 python -m pytest tests/test_pumpfun_bubblemap.py tests/test_pumpfun_antirug.py \
   tests/test_pumpfun_llm_sniper.py tests/test_pumpfun_paper.py -q
 ```
+
+## Live stage (added in PR #5) — built, but OFF by default
+
+- `simulation.py` — Solana RPC `simulateTransaction` for buys, plus the
+  sell-route proof: a pre-buy sell simulation that fails *only* because the
+  wallet holds none of the token still proves the sell path exists; any
+  program error rejects.
+- `signer.py` — local signer. Keypair comes from `SOLANA_KEYPAIR_PATH`
+  (Solana CLI JSON file **outside** the repo) or a local-shell secret.
+  Never commit a keypair, never paste one into chat or `.env` in the repo.
+- `executor.py` — the only broadcast path. Requires BOTH
+  `SNIPER_LIVE_ENABLED=true` and `SNIPER_LIVE_CONFIRM=I_UNDERSTAND_LIVE_TRADING`,
+  then re-checks anti-rug, LLM candidate status, and the risk policy, in
+  that order, before building/simulating/signing/sending. Every refusal is
+  explicit; outcomes are written to the trade ledger (PR #2).
+
+Activating live is the owner's deliberate local step: fund a *separate*
+sniper wallet with only the $5 bankroll, set the two gate variables and the
+keypair path on the host, and run a live runner that calls the executor.
+Losing the whole $5 must be acceptable before that switch is flipped.
+
+## Goal tracker (the honest version of "$5 → $1,500")
+
+`paper.py` now includes `goal_progress` (milestones $10 → $25 → $50 → $100 →
+$250 → $500 → $1,000 → $1,500, remaining multiple, bankroll-alive check) and
+`next_position_usd` compounding: position size = 20% of equity, floored at
+$1, capped at $25, fee reserve always untouched, size 0 when equity falls
+below the reserve (strategy is dead; stop). This fixes the *plan*, not the
+odds: the cap on loss is the $5 itself, and the tracker exists so progress
+— or failure — is measured instead of imagined.

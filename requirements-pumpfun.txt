@@ -1,2 +1,4 @@
 # Minimal dependencies for the isolated read-only PumpFun worker.
 aiohttp>=3.9.0,<4
+# Live stage only (signer): not needed for the read-only monitor.
+solders>=0.21.0
