@@ -94,3 +94,25 @@ agent/
 
 Meme trading = high risk. Hanya pakai dana yang siap hilang.  
 Filter anti-rug adalah heuristik, **bukan** audit keamanan.
+
+---
+
+## PumpFun LLM Sniper (Solana) — anti-rug + Bubble Maps + $5 paper mode
+
+Layer baru di atas PumpFun FOMO Radar (lihat `PUMPFUN_SNIPER.md`):
+
+- **Anti-rugpull gate** (`agent/pumpfun/antirug.py`) — mint/freeze authority,
+  likuiditas/curve, dan simulasi jual; data tidak diketahui = REJECT.
+- **Bubble Maps holder check** (`agent/pumpfun/bubblemap.py`) — top-1/top-10,
+  HHI, dompet dev, dan cluster dompet terhubung (Solana RPC + holder list EVM
+  untuk Robinhood/Pons).
+- **LLM sniper** (`agent/pumpfun/llm_sniper.py`) — skor terstruktur
+  APPROVE_PAPER/WATCH/REJECT; LLM hanya bisa memveto, tidak bisa meloloskan
+  token yang gagal gate deterministik.
+- **Paper engine modal kecil** (`agent/pumpfun/paper.py`) — preset $5,
+  posisi $1, tangga keluar SL −45% / TP 2x–5x–10x / time-stop 6 jam.
+  Target $1.500 = 300×: moonshot untuk diukur di paper mode, bukan janji.
+- **Robinhood + FOMO** tetap lewat `index.html` (JARUM → Pons → FOMO):
+  tanda tangan selalu di akun FOMO pengguna sendiri.
+
+Eksekusi live tetap **DISABLED** — output tertinggi adalah kandidat paper.
