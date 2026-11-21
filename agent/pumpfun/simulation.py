@@ -116,3 +116,43 @@ async def send_transaction(
     if body.get("error") is not None or not isinstance(body.get("result"), str):
         raise RuntimeError("send_transaction_rejected_by_rpc")
     return body["result"]
+
+
+def parse_token_balance(body: Any) -> float | None:
+    """Sum uiAmount over a getTokenAccountsByOwner (jsonParsed) response."""
+    if not isinstance(body, dict) or body.get("error") is not None:
+        return None
+    result = body.get("result")
+    accounts = result.get("value") if isinstance(result, dict) else None
+    if not isinstance(accounts, list):
+        return None
+    total = 0.0
+    found = False
+    for account in accounts:
+        try:
+            info = account["account"]["data"]["parsed"]["info"]
+            amount = info["tokenAmount"]["uiAmount"]
+            if isinstance(amount, (int, float)) and not isinstance(amount, bool) and amount >= 0:
+                total += float(amount)
+                found = True
+        except (KeyError, TypeError):
+            continue
+    return total if found else 0.0
+
+
+async def fetch_token_balance(
+    wallet: str, mint: str, *, rpc_url: str | None = None, post: PostFn | None = None,
+) -> float | None:
+    """Read-only token balance for a wallet/mint pair; None when unknown."""
+    endpoint = _rpc_url(rpc_url)
+    if endpoint is None or not wallet or not mint:
+        return None
+    payload = {
+        "jsonrpc": "2.0", "id": 1, "method": "getTokenAccountsByOwner",
+        "params": [wallet, {"mint": mint}, {"encoding": "jsonParsed", "commitment": "confirmed"}],
+    }
+    try:
+        body = await (post or _default_post)(endpoint, payload)
+    except Exception:
+        return None
+    return parse_token_balance(body)

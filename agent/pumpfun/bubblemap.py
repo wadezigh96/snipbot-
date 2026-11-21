@@ -68,6 +68,7 @@ def analyze_holders(
     total_supply: float | None = None,
     dev_wallet: str | None = None,
     clusters: Sequence[Sequence[str]] | None = None,
+    exclude_owners: set[str] | None = None,
 ) -> BubbleMapResult:
     """Analyze ``(owner, amount)`` pairs. Amounts must share one unit.
 
@@ -77,18 +78,29 @@ def analyze_holders(
     be linked (same funder / same entity); the largest group's combined
     share is reported.
     """
+    excluded = exclude_owners or set()
     cleaned: list[tuple[str, float]] = []
+    excluded_total = 0.0
     for owner, amount in holders:
         if not isinstance(owner, str) or not owner.strip():
             continue
         values = _clean_amounts([amount])
-        if values:
-            cleaned.append((owner.strip(), values[0]))
+        if not values:
+            continue
+        if owner.strip() in excluded:
+            # e.g. the bonding-curve account: it holds most of a new token's
+            # supply by design and is not a "whale holder". Its amount is
+            # subtracted from the supply denominator below.
+            excluded_total += values[0]
+            continue
+        cleaned.append((owner.strip(), values[0]))
     if not cleaned:
         return BubbleMapResult("UNKNOWN", 0, None, None, None, None, None,
                                ("no_holder_data",))
 
     supply = total_supply if total_supply and total_supply > 0 else sum(a for _, a in cleaned)
+    if excluded_total and total_supply:
+        supply = total_supply - excluded_total
     if not supply or supply <= 0:
         return BubbleMapResult("UNKNOWN", len(cleaned), None, None, None, None, None,
                                ("total_supply_unknown",))
@@ -162,6 +174,7 @@ def analyze_holder_dicts(
 
 async def fetch_solana_bubblemap(
     mint: str, *, rpc_url: str | None = None, dev_wallet: str | None = None,
+    exclude_owners: set[str] | None = None,
 ) -> BubbleMapResult:
     """Fetch largest token accounts + supply from a Solana RPC (read-only).
 
@@ -215,6 +228,7 @@ async def fetch_solana_bubblemap(
             return unknown
         # Largest-account addresses are token accounts, not owner wallets, so
         # a dev-wallet match here would be meaningless; dev share stays None.
-        return analyze_holders(pairs, total_supply=total_f, dev_wallet=None)
+        return analyze_holders(pairs, total_supply=total_f, dev_wallet=None,
+                               exclude_owners=exclude_owners)
     except Exception:
         return unknown

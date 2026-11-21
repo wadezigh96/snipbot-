@@ -155,6 +155,64 @@ class Executor:
                                    tx_signature=signature, updated_at=time.time())
         return ExecutionResult("SUBMITTED", "buy_broadcast_confirmed_by_rpc_accept", signature)
 
+    async def sell(
+        self,
+        *,
+        client_order_id: str,
+        mint: str,
+        amount_tokens: str,
+        wallet: str,
+        slippage_percent: int = 5,
+    ) -> ExecutionResult:
+        """Sell path mirroring buy: gate -> build -> strict simulation -> sign -> send.
+
+        Unlike the pre-buy proof, this simulation must pass outright: the wallet
+        holds the tokens, so any failure means the sell is not executable now.
+        """
+        if not self.config.enabled:
+            return ExecutionResult("REFUSED", self.config.reason)
+        try:
+            amount_value = float(amount_tokens)
+        except (TypeError, ValueError):
+            return ExecutionResult("REFUSED", "invalid_sell_amount")
+        if amount_value <= 0:
+            return ExecutionResult("REFUSED", "sell_amount_must_be_positive")
+
+        if self.ledger is not None:
+            self.ledger.create_order(client_order_id, mint, "sell", amount_value)
+        try:
+            sell_tx = await self.build_tx(
+                public_key=wallet, mint=mint, action="sell", amount=str(amount_tokens),
+                denominated_in_sol=False, slippage_percent=slippage_percent,
+                priority_fee_sol="0.00005",
+            )
+        except Exception:
+            return ExecutionResult("REFUSED", "sell_transaction_build_failed")
+        sell_sim = await self.simulate(sell_tx)
+        if not sell_sim.passed:
+            return ExecutionResult("REFUSED", f"sell_simulation_failed:{sell_sim.reason}")
+        if self.ledger is not None:
+            self.ledger.transition(client_order_id, "SIMULATED",
+                                   evidence="sell_simulation", updated_at=time.time())
+        try:
+            signed = self.sign(sell_tx)
+        except Exception:
+            return ExecutionResult("REFUSED", "local_signing_failed")
+        try:
+            signature = await self.send(signed)
+        except Exception:
+            if self.ledger is not None:
+                try:
+                    self.ledger.transition(client_order_id, "FAILED",
+                                           error="broadcast_failed", updated_at=time.time())
+                except Exception:
+                    pass
+            return ExecutionResult("REFUSED", "broadcast_failed")
+        if self.ledger is not None:
+            self.ledger.transition(client_order_id, "SUBMITTED",
+                                   tx_signature=signature, updated_at=time.time())
+        return ExecutionResult("SUBMITTED", "sell_broadcast_accepted_by_rpc", signature)
+
 
 def build_default_executor(ledger: Any | None = None) -> Executor:
     """Wire the real PumpPortal/signer/RPC pieces. Still gated by LiveConfig."""
@@ -168,3 +226,4 @@ def build_default_executor(ledger: Any | None = None) -> Executor:
 
     return Executor(LiveConfig.from_env(), build_tx=build_unsigned_transaction,
                     sign=_sign, ledger=ledger)
+

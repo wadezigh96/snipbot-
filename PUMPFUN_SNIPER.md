@@ -133,3 +133,29 @@ in memory for the risk policy; exits for live positions are not automated
 yet — sell from the wallet/FOMO app, or extend the executor with a sell
 path mirroring `buy`. Live startup refuses (exit 2) when the gate is closed
 or no keypair is configured.
+
+## Auto sell + early entry (PR #7)
+
+- `executor.sell()` mirrors `buy()`: live gate -> build -> *strict* sell
+  simulation (the wallet holds the tokens now, so any failure refuses) ->
+  sign -> broadcast -> ledger.
+- Live exits are automated in the runner: `poll_live_positions` polls
+  DexScreener prices, the `LadderTracker` decides a fraction, the token
+  amount is computed from the wallet's real on-chain balance
+  (`fetch_token_balance`), and the executor sells it. A refused sell
+  restores the fraction and retries next poll.
+- **Moonbag ladder**: SL -45% -> TP1 2x sell 40% (break-even stop) ->
+  TP2 5x sell 25% -> TP3 10x sell 20% -> remaining 15% moonbag rides with
+  a -50%-from-peak trailing stop (24h max). Only the moonbag can capture
+  a >1000% move; the earlier stages exist to remove risk on the way.
+- **Early mode** (`SNIPER_EARLY_MODE=true`, `early.py`): only creation
+  events inside the early curve window (0.5-35 SOL virtual reserves),
+  creator initial buy <= 3 SOL, and a *curve-excluded* Bubble Map —
+  the bonding-curve account (which holds most supply by design) is
+  removed from holder analysis, so what remains visible is real holder
+  concentration: top-1 <= 15%, top-10 <= 50%, no linked cluster > 15%.
+
+Reality check: early entry raises both upside and rug exposure. These
+filters screen the measurable bundle/authority signals; they cannot
+prove a dev will not rug after entry — that is what the stop loss and
+the staged exits are for.
