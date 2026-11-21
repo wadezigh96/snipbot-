@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 SWAP_FEE_PCT = 0.01
 NETWORK_FEE_USD = 0.02
@@ -149,3 +150,37 @@ class PaperEngine:
                 price = prices.get(p.mint, p.entry_price)
                 total += p.amount_usd * p.remaining_fraction * (price / p.entry_price)
         return round(total, 6)
+
+
+# --- Goal tracker: $5 -> $1,500 -------------------------------------------
+# What can actually be "fixed" about a 300x target: not the odds, but the
+# plan. Loss is capped by the bankroll; profits compound into position size
+# only after milestones are reached, and every milestone re-tests whether
+# the strategy is still alive before more size is risked.
+
+MILESTONES_USD = (10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 1500.0)
+
+
+def goal_progress(plan: MicroPlan, equity_usd: float) -> dict[str, Any]:
+    reached = [m for m in MILESTONES_USD if equity_usd >= m]
+    remaining = max(plan.target_usd - equity_usd, 0.0)
+    return {
+        "equity_usd": round(equity_usd, 4),
+        "target_usd": plan.target_usd,
+        "pct_of_target": round(equity_usd / plan.target_usd * 100.0, 4) if plan.target_usd else 0.0,
+        "remaining_usd": round(remaining, 4),
+        "remaining_multiple": round(plan.target_usd / equity_usd, 4) if equity_usd > 0 else None,
+        "milestones_reached": reached,
+        "next_milestone_usd": next((m for m in MILESTONES_USD if equity_usd < m), None),
+        "bankroll_alive": equity_usd > plan.fee_reserve_usd,
+    }
+
+
+def next_position_usd(plan: MicroPlan, equity_usd: float) -> float:
+    """Compounding size: 20% of equity, floored at the base position and
+    capped at $25, always leaving the fee reserve untouched."""
+    if equity_usd <= plan.fee_reserve_usd:
+        return 0.0
+    scaled = equity_usd * 0.20
+    size = min(max(plan.position_usd, scaled), 25.0, equity_usd - plan.fee_reserve_usd)
+    return round(max(size, 0.0), 4)
